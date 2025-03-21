@@ -3,14 +3,14 @@
 # not have.  It is likely that your MPI job will now either abort or
 # experience performance degradation.
 
-all : Exam
+all : Heat
 
 
-Exam : HeatUtils.o Exam.o Interfaces.o
-	mpic++ -Wall Exam.o HeatUtils.o Interfaces.o -o Exam
+Heat : HeatUtils.o Heat.o Interfaces.o
+	mpic++ -Wall Heat.o HeatUtils.o Interfaces.o -o Heat
 
-Exam.o : Exam.cpp
-	mpic++ -Wall -g -c Exam.cpp
+Heat.o : Heat.cpp
+	mpic++ -Wall -g -c Heat.cpp
 
 HeatUtils.o : HeatUtils.cpp
 	mpic++ -Wall -g -c HeatUtils.cpp
@@ -22,7 +22,7 @@ clean :
 	rm -f *.o 
 
 mrproper: clean
-	rm -f *.txt *~ Exam
+	rm -f *.txt *~ Heat
 	
 	
 
