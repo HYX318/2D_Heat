@@ -1,0 +1,7 @@
+My Rank: 3
+My Coordinates: (1, 0)
+Neighbours: 
+South (-2)
+North (4)
+West (0)
+East (6)
