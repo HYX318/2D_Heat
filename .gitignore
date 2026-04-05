@@ -1,0 +1,55 @@
+# CMake build directories
+build/
+build_*/
+cmake-build-*/
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Generated files
+config.hpp
+
+# Compiled files
+*.o
+*.obj
+*.so
+*.a
+*.lib
+*.dylib
+*.dll
+*.exe
+
+# Output directories
+bin/
+lib/
+include/
+
+# Test output
+test_log.txt
+Proc-*.txt
+*.txt
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Editor temp files
+*.tmp
+*~

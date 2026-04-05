@@ -1,0 +1,125 @@
+name: Benchmark
+
+on:
+  schedule:
+    # Run on the first day of every month at 00:00 UTC
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+    inputs:
+      grid_size:
+        description: 'Grid size (NxM)'
+        required: false
+        default: '100x100'
+      time_steps:
+        description: 'Number of time steps'
+        required: false
+        default: '1000'
+      num_processes:
+        description: 'Number of MPI processes'
+        required: false
+        default: '4'
+
+jobs:
+  benchmark:
+    name: Benchmark ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install openmpi
+          export TMPDIR=/tmp
+          echo "TMPDIR=/tmp" >> $GITHUB_ENV
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openmpi-bin libopenmpi-dev
+
+      - name: Build release version
+        run: |
+          make clean
+          make
+
+      - name: Prepare benchmark parameters
+        run: |
+          GRID_SIZE="${{ github.event.inputs.grid_size || '100x100' }}"
+          TIME_STEPS="${{ github.event.inputs.time_steps || '1000' }}"
+          NUM_PROCESSES="${{ github.event.inputs.num_processes || '4' }}"
+
+          echo "GRID_SIZE=${GRID_SIZE}" >> $GITHUB_ENV
+          echo "TIME_STEPS=${TIME_STEPS}" >> $GITHUB_ENV
+          echo "NUM_PROCESSES=${NUM_PROCESSES}" >> $GITHUB_ENV
+
+      - name: Run benchmark with different process counts
+        run: |
+          mkdir -p benchmark_results
+
+          for np in 1 2 4 8; do
+            if [ $np -le $(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || 8) ]; then
+              echo "Running benchmark with ${np} processes..."
+              {
+                echo "Benchmark Results for ${np} processes"
+                echo "Grid Size: ${GRID_SIZE}"
+                echo "Time Steps: ${TIME_STEPS}"
+                echo "================================"
+                /usr/bin/time -v mpirun -np $np ./Heat 2>&1 || true
+              } > benchmark_results/benchmark_${np}_processes.txt
+
+              # Extract timing information
+              grep -E "(User time|System time|Elapsed)" benchmark_results/benchmark_${np}_processes.txt || true
+            fi
+          done
+
+      - name: Analyze performance
+        run: |
+          echo "## Performance Summary" > benchmark_results/summary.md
+          echo "" >> benchmark_results/summary.md
+          echo "| Processes | User Time | System Time | Elapsed Time |" >> benchmark_results/summary.md
+          echo "|-----------|-----------|-------------|--------------|" >> benchmark_results/summary.md
+
+          for np in 1 2 4 8; do
+            if [ -f benchmark_results/benchmark_${np}_processes.txt ]; then
+              USER_TIME=$(grep "User time" benchmark_results/benchmark_${np}_processes.txt | awk '{print $3}' || echo "N/A")
+              SYS_TIME=$(grep "System time" benchmark_results/benchmark_${np}_processes.txt | awk '{print $3}' || echo "N/A")
+              ELAPSED=$(grep "Elapsed" benchmark_results/benchmark_${np}_processes.txt | awk '{print $3}' || echo "N/A")
+
+              echo "| $np | $USER_TIME | $SYS_TIME | $ELAPSED |" >> benchmark_results/summary.md
+            fi
+          done
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results-${{ matrix.os }}-${{ github.run_number }}
+          path: benchmark_results/
+          retention-days: 30
+
+      - name: Create benchmark summary
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cat benchmark_results/summary.md
+
+      - name: Comment on PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('benchmark_results/summary.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '## Benchmark Results\n\n' + summary
+            });

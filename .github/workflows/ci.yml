@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }} | ${{ matrix.compiler }} | ${{ matrix.mpi }} | ${{ matrix.build_type }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [gcc-11, clang-14]
+        mpi: [openmpi, mpich]
+        build_type: [Release, Debug]
+        exclude:
+          # MPICH is not available on macOS via Homebrew
+          - os: macos-latest
+            mpi: mpich
+          # Apple Clang is macOS only
+          - os: ubuntu-latest
+            compiler: apple-clang
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install openmpi
+          export TMPDIR=/tmp
+          echo "TMPDIR=/tmp" >> $GITHUB_ENV
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openmpi-bin libopenmpi-dev
+          sudo apt-get install -y mpich libmpich-dev
+          sudo apt-get install -y g++-11 clang-14
+          sudo apt-get install -y libgtest-dev cmake lcov
+
+      - name: Set up environment variables
+        run: |
+          if [ "${{ matrix.compiler }}" == "gcc-11" ]; then
+            echo "CC=gcc-11" >> $GITHUB_ENV
+            echo "CXX=g++-11" >> $GITHUB_ENV
+          elif [ "${{ matrix.compiler }}" == "clang-14" ]; then
+            echo "CC=clang-14" >> $GITHUB_ENV
+            echo "CXX=clang++-14" >> $GITHUB_ENV
+          elif [ "${{ matrix.compiler }}" == "apple-clang" ]; then
+            echo "CC=clang" >> $GITHUB_ENV
+            echo "CXX=clang++" >> $GITHUB_ENV
+          fi
+
+          if [ "${{ matrix.mpi }}" == "openmpi" ]; then
+            echo "MPICC=mpicc.openmpi" >> $GITHUB_ENV
+            echo "MPICXX=mpic++.openmpi" >> $GITHUB_ENV
+            echo "MPIEXEC=mpirun.openmpi" >> $GITHUB_ENV
+          elif [ "${{ matrix.mpi }}" == "mpich" ]; then
+            echo "MPICC=mpicc.mpich" >> $GITHUB_ENV
+            echo "MPICXX=mpic++.mpich" >> $GITHUB_ENV
+            echo "MPIEXEC=mpirun.mpich" >> $GITHUB_ENV
+          fi
+
+      - name: Cache CMake build
+        uses: actions/cache@v3
+        with:
+          path: |
+            build/
+            ~/.cache/ccache
+          key: ${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.mpi }}-${{ matrix.build_type }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cpp', '**/*.h') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.compiler }}-${{ matrix.mpi }}-${{ matrix.build_type }}-
+
+      - name: Configure CMake
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+                   -DCMAKE_C_COMPILER=${{ env.CC }} \
+                   -DCMAKE_CXX_COMPILER=${{ env.CXX }} \
+                   -DBUILD_TESTS=ON \
+                   -DENABLE_MPI=ON
+
+      - name: Build
+        run: |
+          cd build
+          cmake --build . -- -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || 2)
+
+      - name: Run unit tests
+        if: matrix.build_type == 'Debug'
+        run: |
+          cd build
+          ctest --output-on-failure --verbose
+
+      - name: Run MPI tests
+        run: |
+          cd build
+          if [ -f Heat ]; then
+            ${{ env.MPIEXEC }} -np 4 ./Heat
+          fi
+
+      - name: Generate coverage report
+        if: matrix.compiler == 'gcc-11' && matrix.build_type == 'Debug' && runner.os == 'Linux'
+        run: |
+          cd build
+          lcov --capture --directory . --output-file coverage.info
+          lcov --remove coverage.info '/usr/*' --output-file coverage.info
+          lcov --list coverage.info
+          bash <(curl -s https://codecov.io/bash) -f coverage.info || true
+
+      - name: Static analysis (clang-tidy)
+        if: matrix.compiler == 'clang-14' && matrix.build_type == 'Debug'
+        run: |
+          sudo apt-get install -y clang-tidy-14 || true
+          if command -v clang-tidy-14 &> /dev/null; then
+            cd build
+            cmake --build . --target clang-tidy || true
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        if: matrix.build_type == 'Release'
+        with:
+          name: Heat-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.mpi }}
+          path: |
+            build/Heat
+            build/*.txt
+          retention-days: 7

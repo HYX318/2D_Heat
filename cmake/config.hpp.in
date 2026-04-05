@@ -1,0 +1,20 @@
+#ifndef CONFIG_HPP
+#define CONFIG_HPP
+
+// Project version
+#define PROJECT_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define PROJECT_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define PROJECT_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define PROJECT_VERSION "@PROJECT_VERSION@"
+
+// Build options
+#cmakedefine ENABLE_MPI
+#cmakedefine BUILD_TESTS
+#cmakedefine BUILD_EXAMPLES
+
+// MPI configuration
+#ifdef ENABLE_MPI
+#cmakedefine MPI_VERSION @MPI_VERSION@
+#endif
+
+#endif // CONFIG_HPP

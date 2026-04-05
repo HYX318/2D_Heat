@@ -1,28 +1,33 @@
-# On Osx export TMPDIR=/tmp to avoid
-# A system call failed during shared memory initialization that should
-# not have.  It is likely that your MPI job will now either abort or
-# experience performance degradation.
+# Makefile for 2D Heat Equation Solver
+# Builds parallel MPI program using OpenMPI compiler wrapper
+#
+# On macOS: ensure TMPDIR is set to /tmp to avoid shared memory errors:
+#   export TMPDIR=/tmp
+# or add to your .zshrc or .bashrc
 
-all : Heat
+# Default target: build the Heat executable
+all: Heat
 
-
-Heat : HeatUtils.o Heat.o Interfaces.o
+# Link object files to create the executable
+Heat: HeatUtils.o Heat.o Interfaces.o
 	mpic++ -Wall Heat.o HeatUtils.o Interfaces.o -o Heat
 
-Heat.o : Heat.cpp
+# Compile Heat.cpp
+Heat.o: Heat.cpp
 	mpic++ -Wall -g -c Heat.cpp
 
-HeatUtils.o : HeatUtils.cpp
+# Compile HeatUtils.cpp
+HeatUtils.o: HeatUtils.cpp
 	mpic++ -Wall -g -c HeatUtils.cpp
 
-Interfaces.o : Interfaces.cpp
+# Compile Interfaces.cpp
+Interfaces.o: Interfaces.cpp
 	mpic++ -Wall -g -c Interfaces.cpp
 
-clean :
-	rm -f *.o 
+# Remove object files
+clean:
+	rm -f *.o
 
+# Clean all generated files (object files, output files, executable)
 mrproper: clean
 	rm -f *.txt *~ Heat
-	
-	
-
