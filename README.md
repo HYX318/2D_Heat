@@ -32,7 +32,7 @@ A high-performance parallel computing application for solving the 2D heat diffus
 # Configure and build
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
+ make -j$(sysctl -n hw.ncpu)
 
 # Run tests (if enabled)
 ctest
@@ -42,10 +42,10 @@ ctest
 
 ```bash
 # Serial example with 4 MPI processes
-mpirun -n 4 ./build/bin/heat_equation
+mpirun -n 4 ./bin/heat_equation
 
 # With custom parameters
-mpirun -n 4 ./build/bin/heat_equation -nx 200 -ny 200 -nt 100 -stabp 0.25
+mpirun -n 4 ./bin/heat_equation -nx 200 -ny 200 -nt 100 -stabp 0.25
 
 # Show help
 ./build/bin/heat_equation -h

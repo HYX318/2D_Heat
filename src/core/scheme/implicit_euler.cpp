@@ -14,8 +14,8 @@ ImplicitEuler::ImplicitEuler() {
     stats_.reset();
 }
 
-void ImplicitEuler::initialize_solver(const TimeParams& params,
-                                      const SolverParams& solver_params) {
+void ImplicitEuler::initialize_solver(const TimeParams& /*params*/,
+                                      const SolverParams& /*solver_params*/) {
     // For now, use Jacobi solver by default
     // In a full implementation, we would allow user to choose solver type
     solver_ = std::make_unique<JacobiSolver<false>>();

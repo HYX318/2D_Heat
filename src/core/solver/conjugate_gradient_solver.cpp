@@ -34,7 +34,7 @@ ConjugateGradientSolver::ConjugateGradientSolver(bool use_preconditioner, double
 ConjugateGradientSolver::ConjugateGradientSolver(bool use_preconditioner, double lambda,
                                                     MPI_Comm comm,
                                                     const int neighbor_rank[4],
-                                                    int nx, int ny)
+                                                    int /*nx*/, int /*ny*/)
     : use_preconditioner_(use_preconditioner),
       lambda_(lambda),
       restart_threshold_(50),

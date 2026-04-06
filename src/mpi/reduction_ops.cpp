@@ -11,7 +11,7 @@ ReductionOps::ReductionOps() : comm_(MPI_COMM_WORLD) {
 ReductionOps::ReductionOps(MPI_Comm comm) : comm_(comm) {
 }
 
-ReductionOps::ReductionOps(const MPIContext& ctx) : comm_(MPI_COMM_WORLD) {
+ReductionOps::ReductionOps(const MPIContext& /*ctx*/) : comm_(MPI_COMM_WORLD) {
     // The MPIContext uses MPI_COMM_WORLD internally
     // If we need to support custom communicators in MPIContext,
     // we would need to add a method to access it
