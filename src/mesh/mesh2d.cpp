@@ -308,34 +308,34 @@ void Mesh2D::apply_bc(std::function<double(double x, double y, double t)> bc_fun
 }
 
 // Apply constant boundary condition at specific direction
-void Mesh2D::apply_bc_at_direction(Direction dir, double value) {
+void Mesh2D::apply_bc_at_direction(CardinalDirection dir, double value) {
     if (!has_ghost_cells_) {
         return;
     }
 
     switch (dir) {
-        case Direction::South:
+        case CardinalDirection::South:
             // South ghost row
             for (size_t j = 0; j < total_nx_; ++j) {
                 data_(0, j) = value;
             }
             break;
 
-        case Direction::North:
+        case CardinalDirection::North:
             // North (ny+1) ghost row
             for (size_t j = 0; j < total_nx_; ++j) {
                 data_(total_ny_ - 1, j) = value;
             }
             break;
 
-        case Direction::West:
+        case CardinalDirection::West:
             // West ghost column
             for (size_t i = 0; i < total_ny_; ++i) {
                 data_(i, 0) = value;
             }
             break;
 
-        case Direction::East:
+        case CardinalDirection::East:
             // East (nx+1) ghost column
             for (size_t i = 0; i < total_ny_; ++i) {
                 data_(i, total_nx_ - 1) = value;

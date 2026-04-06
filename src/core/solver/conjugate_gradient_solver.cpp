@@ -3,7 +3,7 @@
  * @brief Implementation of Conjugate Gradient solver
  */
 
-#include "core/solver/conjugate_gradient_solver.hpp"
+#include "conjugate_gradient_solver.hpp"
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
@@ -21,8 +21,6 @@ ConjugateGradientSolver::ConjugateGradientSolver(bool use_preconditioner, double
       comm_(MPI_COMM_NULL),
       rank_(0),
       size_(1),
-      nx_(0),
-      ny_(0),
       initialized_(false) {
     // Initialize neighbor ranks to -1 (no neighbors in serial mode)
     for (int i = 0; i < 4; ++i) {
@@ -42,8 +40,6 @@ ConjugateGradientSolver::ConjugateGradientSolver(bool use_preconditioner, double
       restart_threshold_(50),
       is_parallel_(true),
       comm_(comm),
-      nx_(nx),
-      ny_(ny),
       initialized_(false) {
     // Get MPI rank and size
     MPI_Comm_rank(comm_, &rank_);
@@ -357,7 +353,7 @@ void ConjugateGradientSolver::solve(const utils::Array2D& rhs,
     int iterations_without_progress = 0;
 
     // Main CG iteration loop
-    for (int iteration = 1; iteration <= params.max_iterations; ++iteration) {
+    for (size_t iteration = 1; iteration <= params.max_iterations; ++iteration) {
         stats_.iterations = iteration;
 
         // Compute Ap = A * p

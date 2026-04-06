@@ -1,7 +1,7 @@
 #ifndef DOMAIN_DECOMPOSITION_HPP
 #define DOMAIN_DECOMPOSITION_HPP
 
-#include "mpi/cartesian_topology.hpp"
+#include "../mpi/cartesian_topology.hpp"
 #include <vector>
 #include <cmath>
 #include <algorithm>

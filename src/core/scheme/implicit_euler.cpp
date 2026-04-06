@@ -17,8 +17,8 @@ ImplicitEuler::ImplicitEuler() {
 void ImplicitEuler::initialize_solver(const TimeParams& params,
                                       const SolverParams& solver_params) {
     // For now, use Jacobi solver by default
-    // In a full implementation, we would allow the user to choose solver type
-    solver_ = std::make_unique<JacobiSolver>();
+    // In a full implementation, we would allow user to choose solver type
+    solver_ = std::make_unique<JacobiSolver<false>>();
 }
 
 void ImplicitEuler::step(const Mesh2D& current, Mesh2D& next,
@@ -40,8 +40,8 @@ void ImplicitEuler::step(const Mesh2D& current, Mesh2D& next,
     // 2. Build the RHS vector b = u^n / Δt
     // 3. Solve Au^{n+1} = b using the iterative solver
 
-    // For simplicity in this implementation, we'll use the mesh-based solver
-    // which operates directly on the mesh data
+    // For simplicity in this implementation, we'll use a mesh-based solver
+    // which operates directly on mesh data
 
     // Copy current solution as initial guess
     next.copy_from(current);
@@ -50,7 +50,7 @@ void ImplicitEuler::step(const Mesh2D& current, Mesh2D& next,
     utils::Array2D rhs(current.total_nx(), current.total_ny());
     rhs.copy_from(current.data());
 
-    // We need to incorporate the boundary conditions and the diffusion operator
+    // We need to incorporate boundary conditions and the diffusion operator
     // This is a simplified implementation - a full implementation would
     // construct the proper linear system
 
@@ -88,9 +88,7 @@ void ImplicitEuler::step(const Mesh2D& current, Mesh2D& next,
     stats_.total_time += elapsed.count();
     stats_.avg_step_time = stats_.total_time / stats_.step;
 
-    utils::Logger::get_instance().log_debug(
-        "ImplicitEuler: Step " + std::to_string(stats_.step) +
-        ", t = " + std::to_string(stats_.t_current) +
-        ", time = " + std::to_string(elapsed.count()) + "s"
-    );
+    // Debug output (Logger::get_instance()() is not available; use direct output if needed)
+    // std::cerr << "ImplicitEuler: Step " << stats_.step << ", t = " << stats_.t_current
+    //           << ", time = " << elapsed.count() << "s\n";
 }

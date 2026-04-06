@@ -19,44 +19,8 @@
 #include <mpi.h>
 #include <memory>
 #include <string>
-#include "utils/array2d.hpp"
-
-/**
- * @enum SolverType
- * @brief Type identifier for different solvers
- */
-enum class SolverType {
-    JACOBI,      ///< Jacobi iteration
-    GAUSS_SEIDEL,///< Gauss-Seidel iteration
-    SOR,         ///< Successive Over-Relaxation
-    CG,          ///< Conjugate Gradient
-    PCG,         ///< Preconditioned CG
-    MULTIGRID    ///< Multigrid method
-};
-
-/**
- * @struct SolverParams
- * @brief Parameters for iterative solvers
- */
-struct SolverParams {
-    double tolerance = 1e-8;        ///< Convergence tolerance
-    int max_iterations = 1000;      ///< Maximum number of iterations
-    double omega = 1.0;             ///< Relaxation parameter (for SOR)
-    bool verbose = false;           ///< Enable verbose output
-    double lambda = 0.0;            ///< Time step coefficient = dt/h^2
-};
-
-/**
- * @struct SolverStats
- * @brief Statistics from solver execution
- */
-struct SolverStats {
-    int iterations = 0;            ///< Number of iterations performed
-    double residual = 0.0;          ///< Final residual norm
-    double convergence_rate = 0.0;   ///< Estimated convergence rate
-    double solve_time = 0.0;        ///< Time taken to solve (seconds)
-    int restarts = 0;               ///< Number of restarts performed
-};
+#include "solver_interface.hpp"
+#include "../../utils/array2d.hpp"
 
 /**
  * @class ConjugateGradientSolver
@@ -140,7 +104,7 @@ public:
      * @return Solver type enum
      */
     SolverType get_type() const {
-        return use_preconditioner_ ? SolverType::PCG : SolverType::CG;
+        return use_preconditioner_ ? SolverType::PreconditionedCG : SolverType::ConjugateGradient;
     }
 
     /**
@@ -209,7 +173,6 @@ private:
     int rank_;                       ///< Process rank
     int size_;                       ///< Number of processes
     int neighbor_rank_[4];           ///< Neighbor ranks [N, S, E, W]
-    int nx_, ny_;                    ///< Local grid dimensions
 
     // Solver state
     SolverStats stats_;              ///< Statistics from last solve

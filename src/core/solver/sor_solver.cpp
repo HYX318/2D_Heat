@@ -4,7 +4,7 @@
  */
 
 #include "sor_solver.hpp"
-#include "../mpi/ghost_cell_exchange.hpp"
+#include "../../mpi/ghost_cell_exchange.hpp"
 #include <algorithm>
 #include <iostream>
 
@@ -164,7 +164,7 @@ SolverStats SORSolver::get_stats() const {
 // Get solver name
 std::string SORSolver::get_name() const {
     std::string name = "SOR";
-    if (is_red_black_) {
+    if (use_red_black_) {
         name += "-RedBlack";
     }
     if (is_parallel_ && check_parallel()) {

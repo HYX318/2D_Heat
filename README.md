@@ -10,7 +10,7 @@ A high-performance parallel computing application for solving the 2D heat diffus
 - **Parallel Computing**: MPI-based domain decomposition for multi-node execution
 - **Multiple Solvers**: Jacobi, SOR, Conjugate Gradient, and Preconditioned CG
 - **Time Integration**: Implicit Euler and Crank-Nicolson schemes
-- **Flexible Mesh**: Uniform and non-uniform grids with ghost cell support
+- **Flexible Mesh**: Uniform grids with ghost cell support
 - **Performance Optimized**: Communication/computation overlap, vectorization, and cache optimization
 - **Comprehensive Testing**: Unit tests with Google Test framework
 - **Clean API**: Well-documented interfaces with examples
@@ -29,27 +29,26 @@ A high-performance parallel computing application for solving the 2D heat diffus
 ## Building
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/2D_Heat.git
-cd 2D_Heat
-
 # Configure and build
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 
-# Run tests
+# Run tests (if enabled)
 ctest
 ```
 
 ## Running Examples
 
 ```bash
-# Serial example
-./build/bin/heat_solver
+# Serial example with 4 MPI processes
+mpirun -n 4 ./build/bin/heat_equation
 
-# Parallel example with 4 processes
-mpirun -n 4 ./build/bin/heat_solver_parallel
+# With custom parameters
+mpirun -n 4 ./build/bin/heat_equation -nx 200 -ny 200 -nt 100 -stabp 0.25
+
+# Show help
+./build/bin/heat_equation -h
 ```
 
 ---
@@ -65,7 +64,7 @@ sudo make install
 
 This installs:
 - Libraries to `/usr/local/lib`
-- Headers to `/usr/local/include/2D_Heat`
+- Headers to `/usr/local/include`
 - Executables to `/usr/local/bin`
 
 ## Custom Installation
@@ -79,6 +78,29 @@ sudo make install
 ---
 
 # Usage
+
+## Command Line Interface
+
+```bash
+# Basic usage
+./bin/heat_equation [options] [param_file]
+
+# Options:
+-h, --help              Show help message
+-f, --file <file>       Parameter file (text or JSON format)
+-nx, --nx <value>       Number of grid points in x-direction
+-ny, --ny <value>       Number of grid points in y-direction
+-nt, --nt <value>       Number of time steps
+-dt, --dt <value>       Time step size
+-stabp, --stabp <value> Stability parameter
+-alpha, --alpha <value> Diffusion coefficient
+-solver, --solver <type> Solver type (Jacobi, SOR, CG, etc.)
+-scheme, --scheme <type> Time scheme (ImplicitEuler, CrankNicolson)
+-format, --format <fmt> Output format (Text, VTK, HDF5)
+-o, --output <prefix>   Output file prefix
+-interval, --interval N  Output every N steps
+-no-mpi, --no-mpi       Disable MPI (run serial)
+```
 
 ## Basic Example
 
@@ -118,9 +140,7 @@ int main(int argc, char** argv) {
 ```cpp
 #include "mpi/mpi_context.hpp"
 #include "mpi/cartesian_topology.hpp"
-#include "mpi/ghost_cell_exchange.hpp"
 #include "mesh/mesh2d.hpp"
-#include "core/solver/conjugate_gradient_solver.hpp"
 
 int main(int argc, char** argv) {
     // Initialize MPI
@@ -130,29 +150,24 @@ int main(int argc, char** argv) {
     CartesianTopology topology(MPI_COMM_WORLD);
 
     // Create mesh with ghost cells
-    Mesh2D mesh(200, 200, 1.0, 1.0, topology);
+    Meshes2D mesh(200, 200, 1.0, 1.0, topology);
 
     // Apply boundary conditions
     mesh.apply_dirichlet_bc(0.0);
 
-    // Create ghost cell exchange
-    GhostCellExchange exchange(mesh.nx(), mesh.ny(), topology);
-
-    // Create parallel CG solver
-    ConjugateGradientSolver solver(true, 0.25);
-    SolverParams params(1e-8, 1000);
-    solver.set_restart_threshold(100);
+    // Create solver (Jacobi with MPI support)
+    JacobiSolver<true> solver(&ghost_exchange, MPI_COMM_WORLD);
+    SolverParams params(1e-6, 10000);
 
     // Solve
     utils::Array2D rhs = mesh.data();
-    utils::Array2D solution = mesh.data();
+    utils::Array2D solution(100, 100);
     solver.solve(rhs, solution, params);
 
     // Print results on root
     if (mpi.is_root()) {
         auto stats = solver.get_stats();
         std::cout << "Iterations: " << stats.iterations << std::endl;
-        std::cout << "Residual: " << stats.residual << std::endl;
     }
 
     return 0;
@@ -165,13 +180,12 @@ int main(int argc, char** argv) {
 
 ## Available Documentation
 
+- **[CMake Guide](README_CMAKE.md)** - Build system details
+- **[Quick Start](QUICKSTART.md)** - Getting started guide
 - **[Architecture Documentation](docs/architecture.md)** - System design and architecture
 - **[API Documentation](docs/api.md)** - Complete API reference
 - **[Performance Guide](docs/performance_guide.md)** - Optimization and tuning
 - **[Examples Guide](docs/examples.md)** - Complete code examples
-- **[Migration Guide](docs/migration_guide.md)** - Migrating from legacy code
-- **[CMake Guide](README_CMAKE.md)** - Build system details
-- **[Quick Start](QUICKSTART.md)** - Getting started guide
 
 ---
 
@@ -180,14 +194,17 @@ int main(int argc, char** argv) {
 ```
 2D_Heat/
 ├── src/                          # Source code
+│   ├── main.cpp                   # Main program entry point
 │   ├── core/                      # Core solver and time stepping
 │   │   ├── solver/                # Iterative solvers
 │   │   │   ├── jacobi_solver.hpp/cpp
 │   │   │   ├── sor_solver.hpp/cpp
-│   │   │   └── conjugate_gradient_solver.hpp/cpp
-│   │   └── timestepping/         # Time integration schemes
+│   │   │   ├── conjugate_gradient_solver.hpp/cpp
+│   │   │   └── solver_interface.hpp
+│   │   └── scheme/                # Time integration schemes
 │   │       ├── implicit_euler.hpp/cpp
-│   │       └── crank_nicolson.hpp/cpp
+│   │       ├── crank_nicolson.hpp/cpp
+│   │       └── time_scheme_interface.hpp
 │   ├── mesh/                      # Mesh and domain management
 │   │   ├── mesh2d.hpp/cpp
 │   │   ├── domain_decomposition.hpp/cpp
@@ -198,12 +215,16 @@ int main(int argc, char** argv) {
 │   │   ├── ghost_cell_exchange.hpp/cpp
 │   │   ├── reduction_ops.hpp/cpp
 │   │   └── profiler.hpp/cpp
+│   ├── io/                        # I/O operations
+│   │   ├── param_reader.hpp/cpp
+│   │   └── solution_exporter.hpp/cpp
 │   └── utils/                     # Utility classes
 │       ├── array2d.hpp
 │       ├── logger.hpp/cpp
 │       ├── timer.hpp
-│       ├── param_reader.hpp.hpp
-│       └── solution_exporter.hpp.cpp
+│       ├── logger_test.cpp
+│       └── timer_example.cpp
+├── legacy/                        # Legacy compatibility layer
 ├── tests/                         # Tests
 │   ├── unit/                      # Unit tests
 │   └── performance/               # Performance benchmarks
@@ -212,8 +233,8 @@ int main(int argc, char** argv) {
 │   ├── architecture.md
 │   ├── api.md
 │   ├── performance_guide.md
-│   ├── examples.md
-│   └── migration_guide.md
+│   └── examples.md
+├── scripts/                       # Build and test scripts
 ├── CMakeLists.txt                # Main CMake configuration
 ├── README.md                      # This file
 └── QUICKSTART.md                  # Quick start guide
@@ -228,6 +249,7 @@ int main(int argc, char** argv) {
 ```bash
 # Build type
 cmake .. -DCMAKE_BUILD_TYPE=Release    # Optimized build
+
 cmake .. -DCMAKE_BUILD_TYPE=Debug      # Debug build
 
 # MPI support
@@ -235,11 +257,8 @@ cmake .. -DENABLE_MPI=ON              # Enable MPI (default)
 cmake .. -DENABLE_MPI=OFF             # Disable MPI
 
 # Build targets
-cmake .. -DBUILD_TESTS=ON              # Build tests (default)
+cmake .. -DBUILD_TESTS=ON              # Build tests
 cmake .. -DBUILD_EXAMPLES=ON          # Build examples (default)
-
-# Compiler
-cmake .. -DCMAKE_CXX_COMPILER=mpicxx   # Use MPI compiler
 ```
 
 ## Make Targets
@@ -249,15 +268,13 @@ cmake .. -DCMAKE_CXX_COMPILER=mpicxx   # Use MPI compiler
 make -j$(nproc)
 
 # Build specific target
-make heat_solver
-make test_jacobi_solver
+make heat_equation
 
 # Install
 sudo make install
 
 # Clean
 make clean
-make distclean
 ```
 
 ---
@@ -298,12 +315,11 @@ mpirun -n 8 ./bin/test_conjugate_gradient_solver
 
 ## Solver Performance Comparison
 
-| Solver | Grid Size | Iterations | Time (s) | Speedup |
+| Solver | Grid Type | Iterations | Time (s) | Speedup |
 |--------|------------|------------|----------|----------|
 | Jacobi | 100×100 | 18,500 | 2.45 | 1.0× |
 | SOR | 100×100 | 850 | 0.32 | 7.7× |
 | CG | 100×100 | 180 | 0.15 | 16.3× |
-| PCG | 100×100 | 120 | 0.12 | 20.4× |
 
 ## Strong Scaling (500×500 Grid)
 
@@ -313,11 +329,10 @@ mpirun -n 8 ./bin/test_conjugate_gradient_solver
 | 2 | 76.8 | 1.89 | 94.5% |
 | 4 | 41.2 | 3.53 | 88.3% |
 | 8 | 23.5 | 6.18 | 77.3% |
-| 16 | 13.8 | 10.52 | 65.8% |
 
 ## Optimization Tips
 
-1. **Use Appropriate Solver**: CG/PCG for large problems, SOR for medium problems
+1. **Use Appropriate Solver**: CG for large problems, SOR for medium problems
 2. **Enable Optimizations**: Build with `-DCMAKE_BUILD_TYPE=Release`
 3. **Process Count**: Use one process per CPU core
 4. **Communication Overlap**: Automatic with GhostCellExchange
@@ -342,7 +357,6 @@ mpirun -n 8 ./bin/test_conjugate_gradient_solver
 - **MPI**: OpenMPI 4.0+
 - **RAM**: 4 GB or more
 - **CPU**: Multi-core processor for parallel execution
-- **Disk**: 1 GB for installation and examples
 
 ## OS Support
 
@@ -359,9 +373,6 @@ mpirun -n 8 ./bin/test_conjugate_gradient_solver
 ```bash
 # Specify MPI compiler explicitly
 cmake .. -DCMAKE_CXX_COMPILER=mpicxx
-
-# Or find MPI manually
-cmake .. -DMPI_CXX_COMPILER=/usr/lib/openmpi/bin/mpicxx
 ```
 
 ## Build Errors
@@ -382,18 +393,15 @@ ctest --verbose
 
 # Check specific test
 ctest -R TestName --output-on-failure
-
-# Run with valgrind for memory errors
-ctest -T memcheck
 ```
 
-## Performance Issues
+## macOS MPI Issues
 
-1. Check process count (one per core)
-2. Verify build type (Release mode)
-3. Enable compiler optimizations
-4. Profile with built-in Profiler
-5. Consider different solver
+On macOS, set TMPDIR to avoid shared memory errors:
+
+```bash
+export TMPDIR=/tmp
+```
 
 ---
 
@@ -403,7 +411,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ## Development Workflow
 
-1. Fork the repository
+1. Fork repository
 2. Create a feature branch
 3. Make your changes
 4. Add tests for new functionality
@@ -428,35 +436,10 @@ This project is licensed under the MIT License - see LICENSE file for details.
 
 ---
 
-# Citation
-
-If you use this software in your research, please cite:
-
-```
-@software{2d_heat_equation_solver,
-  author = {Your Name},
-  title = {2D Heat Equation Solver},
-  year = {2024},
-  url = {https://github.com/yourusername/2D_Heat}
-}
-```
-
----
-
-# Acknowledgments
-
-- MPI Forum for MPI standard
-- Google Test for testing framework
-- CMake for build system
-- The C++ community for best practices
-
----
-
 # Contact
 
 - **Issues**: [GitHub Issues](https://github.com/yourusername/2D_Heat/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/yourusername/2D_Heat/discussions)
-- **Email**: your.email@example.com
 
 ---
 
@@ -467,7 +450,6 @@ If you use this software in your research, please cite:
 - [API Reference](docs/api.md)
 - [Performance Guide](docs/performance_guide.md)
 - [Architecture](docs/architecture.md)
-- [Migration Guide](docs/migration_guide.md)
 
 ---
 

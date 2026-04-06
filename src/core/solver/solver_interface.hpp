@@ -8,7 +8,18 @@
 
 #include <cstddef>
 #include <string>
+#include <stdexcept>
 #include "../../utils/array2d.hpp"
+
+/**
+ * @class ConvergenceFailureException
+ * @brief Exception thrown when solver fails to converge
+ */
+class ConvergenceFailureException : public std::runtime_error {
+public:
+    explicit ConvergenceFailureException(const std::string& message)
+        : std::runtime_error(message) {}
+};
 
 /**
  * @enum SolverType
@@ -19,6 +30,7 @@ enum class SolverType {
     GaussSeidel,
     SOR,
     ConjugateGradient,
+    PreconditionedCG,
     Multigrid
 };
 
@@ -32,6 +44,8 @@ struct SolverParams {
     size_t residual_check_interval;
     bool compute_final_residual;
     double lambda;
+    bool verbose;
+    double omega;
 
     SolverParams()
         : tolerance(1e-6)
@@ -39,15 +53,19 @@ struct SolverParams {
         , residual_check_interval(10)
         , compute_final_residual(true)
         , lambda(0.25)
+        , verbose(false)
+        , omega(1.0)
     {}
 
     SolverParams(double tol, size_t max_iter, size_t check_interval = 10,
-                bool compute_residual = true, double lam = 0.25)
+                bool compute_residual = true, double lam = 0.25, bool verb = false, double w = 1.0)
         : tolerance(tol)
         , max_iterations(max_iter)
         , residual_check_interval(check_interval)
         , compute_final_residual(compute_residual)
         , lambda(lam)
+        , verbose(verb)
+        , omega(w)
     {}
 };
 
@@ -62,6 +80,9 @@ struct SolverStats {
     double initial_residual;
     double solve_time;
     double reduction_factor;
+    double residual;            ///< Current residual (for CG)
+    double convergence_rate;    ///< Convergence rate (for CG)
+    int restarts;               ///< Number of restarts (for CG)
 
     SolverStats()
         : converged(false)
@@ -70,6 +91,9 @@ struct SolverStats {
         , initial_residual(0.0)
         , solve_time(0.0)
         , reduction_factor(1.0)
+        , residual(0.0)
+        , convergence_rate(0.0)
+        , restarts(0)
     {}
 
     void reset() {

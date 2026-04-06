@@ -14,6 +14,7 @@
 #define SOR_SOLVER_HPP
 
 #include "solver_interface.hpp"
+#include "../../mpi/ghost_cell_exchange.hpp"
 #include <mpi.h>
 #include <cmath>
 #include <stdexcept>

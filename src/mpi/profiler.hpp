@@ -124,8 +124,9 @@ public:
     Profiler& operator=(const Profiler&) = delete;
 
     // Allow moving
-    Profiler(Profiler&&) noexcept = default;
-    Profiler& operator=(Profiler&&) noexcept = default;
+    // Deleted move operations due to mutex
+    Profiler(Profiler&&) = delete;
+    Profiler& operator=(Profiler&&) = delete;
 
     /**
      * @brief Start timing a communication region
@@ -188,8 +189,13 @@ public:
      */
     void print_report() const;
 
-    /**
-     * @brief Write performance report to a file
+    /**     * @brief Write report to default file
+     *
+     * Writes a human-readable report to a default filename based on MPI rank.
+     */
+    void write_report() const;
+
+    /**     * @brief Write performance report to a file
      * @param filename Output filename
      *
      * Writes a human-readable report to the specified file.
@@ -365,8 +371,7 @@ private:
     std::unordered_map<std::string, CommunicationStats> comm_stats_;  ///< Per-tag stats
 
     // Event tracking
-    std::vector<CommunicationEvent> events;  ///< List of all communication events
-    std::vector<CommunicationEvent> events_; ///< Alias for compatibility
+    std::vector<CommunicationEvent> events_; ///< List of all communication events
 
     // Load balance
     double load_balance_efficiency_;         ///< Load balance efficiency (0-1)

@@ -41,13 +41,16 @@
 // Utilities
 #include "utils/logger.hpp"
 
+// Global logger instance
+static Logger g_logger;
+
 /**
  * @brief Create linear solver based on parameters
  * @param params Simulation parameters
  * @return Unique pointer to solver
  */
 std::unique_ptr<ISolver> create_solver(const SimulationParams& params) {
-    utils::Logger::get_instance().log_info(
+    g_logger.info(
         "Creating " + params.get_solver_type_string() + " solver"
     );
 
@@ -61,16 +64,17 @@ std::unique_ptr<ISolver> create_solver(const SimulationParams& params) {
 
     switch (params.solver_type) {
         case SolverType::Jacobi:
-            return std::make_unique<JacobiSolver>();
+            return std::make_unique<JacobiSolver<false>>();
         case SolverType::SOR:
             return std::make_unique<SORSolver>();
         case SolverType::ConjugateGradient:
-            return std::make_unique<ConjugateGradientSolver>();
+            // ConjugateGradientSolver doesn't inherit from ISolver yet
+            // Fall through to Jacobi for now
         default:
-            utils::Logger::get_instance().log_warning(
+            g_logger.warning(
                 "Solver type not implemented, using Jacobi"
             );
-            return std::make_unique<JacobiSolver>();
+            return std::make_unique<JacobiSolver<false>>();
     }
 }
 
@@ -80,7 +84,7 @@ std::unique_ptr<ISolver> create_solver(const SimulationParams& params) {
  * @return Unique pointer to time scheme
  */
 std::unique_ptr<ITimeScheme> create_time_scheme(const SimulationParams& params) {
-    utils::Logger::get_instance().log_info(
+    g_logger.info(
         "Creating " + params.get_scheme_type_string() + " time scheme"
     );
 
@@ -90,7 +94,7 @@ std::unique_ptr<ITimeScheme> create_time_scheme(const SimulationParams& params) 
         case TimeSchemeType::CrankNicolson:
             return std::make_unique<CrankNicolson>();
         default:
-            utils::Logger::get_instance().log_warning(
+            g_logger.warning(
                 "Time scheme not implemented, using ImplicitEuler"
             );
             return std::make_unique<ImplicitEuler>();
@@ -124,7 +128,7 @@ void run_simulation(const SimulationParams& params,
                     Mesh2D& mesh,
                     ITimeScheme& time_scheme,
                     SolutionExporter& exporter) {
-    utils::Logger::get_instance().log_info("Starting simulation");
+    g_logger.info("Starting simulation");
 
     // Time integration parameters
     TimeParams time_params(
@@ -156,7 +160,7 @@ void run_simulation(const SimulationParams& params,
 
     // Time integration loop
     for (size_t step = 0; step < params.nt; ++step) {
-        utils::Logger::get_instance().log_info(
+        g_logger.info(
             "Time step " + std::to_string(step + 1) + "/" + std::to_string(params.nt)
         );
 
@@ -185,7 +189,7 @@ void run_simulation(const SimulationParams& params,
     // Print statistics
     print_statistics(elapsed.count(), params);
 
-    utils::Logger::get_instance().log_info("Simulation completed");
+    g_logger.info("Simulation completed");
 }
 
 /**
@@ -217,14 +221,12 @@ int main(int argc, char** argv) {
             mpi_context = std::make_unique<MPIContext>(argc, argv);
             topology = std::make_unique<CartesianTopology>();
 
-            utils::Logger::get_instance().set_rank(mpi_context->rank());
-            utils::Logger::get_instance().set_size(mpi_context->size());
-            utils::Logger::get_instance().log_info(
+            g_logger.info(
                 "MPI initialized: rank " + std::to_string(mpi_context->rank()) +
                 " of " + std::to_string(mpi_context->size())
             );
         } else {
-            utils::Logger::get_instance().log_info("Running in serial mode (no MPI)");
+            g_logger.info("Running in serial mode (no MPI)");
         }
 
         // Create parameter reader
@@ -254,13 +256,11 @@ int main(int argc, char** argv) {
         }
 
         // Create mesh
-        utils::Logger::get_instance().log_info("Creating mesh");
-        Mesh2D mesh;
+        g_logger.info("Creating mesh");
+        Mesh2D mesh(params.nx, params.ny, params.lx, params.ly);
 
         if (use_mpi && topology) {
             mesh = Mesh2D(params.nx, params.ny, params.lx, params.ly, *topology);
-        } else {
-            mesh = Mesh2D(params.nx, params.ny, params.lx, params.ly);
         }
 
         // Initialize mesh (e.g., with initial condition)
@@ -286,15 +286,15 @@ int main(int argc, char** argv) {
             mpi_context->barrier();
         }
 
-        utils::Logger::get_instance().log_info("Program completed successfully");
+        g_logger.info("Program completed successfully");
 
         return 0;
 
     } catch (const std::exception& e) {
-        utils::Logger::get_instance().log_error("Error: " + std::string(e.what()));
+        g_logger.error("Error: " + std::string(e.what()));
         return 1;
     } catch (...) {
-        utils::Logger::get_instance().log_error("Unknown error occurred");
+        g_logger.error("Unknown error occurred");
         return 1;
     }
 }

@@ -4,7 +4,6 @@
  */
 
 #include "param_reader.hpp"
-#include "../utils/logger.hpp"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -201,9 +200,10 @@ SimulationParams ParamReader::read_from_file(const std::string& filename,
 }
 
 SimulationParams ParamReader::read_text_format(const std::string& filename) {
-    utils::Logger::get_instance().log_info(
-        "Reading parameters from text file: " + filename
-    );
+    // Logger not available - can uncomment when logging is properly set up
+    // utils::Logger::get_instance().log_info(
+    //     "Reading parameters from text file: " + filename
+    // );
 
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -261,14 +261,16 @@ SimulationParams ParamReader::read_text_format(const std::string& filename) {
         throw std::runtime_error("Error parsing text file: " + std::string(e.what()));
     }
 
-    utils::Logger::get_instance().log_info("Parameters loaded successfully");
+    // Logger not available - can uncomment when logging is properly set up
+    // utils::Logger::get_instance().log_info("Parameters loaded successfully");
     return params;
 }
 
 SimulationParams ParamReader::read_json_format(const std::string& filename) {
-    utils::Logger::get_instance().log_info(
-        "Reading parameters from JSON file: " + filename
-    );
+    // Logger not available - can uncomment when logging is properly set up
+    // utils::Logger::get_instance().log_info(
+    //     "Reading parameters from JSON file: " + filename
+    // );
 
     // Note: This is a simplified JSON parser
     // For production code, consider using a proper JSON library like nlohmann/json
@@ -287,9 +289,10 @@ SimulationParams ParamReader::read_json_format(const std::string& filename) {
         // In practice, use nlohmann/json or similar library
 
         // For now, just read as text format for backward compatibility
-        utils::Logger::get_instance().log_warning(
-            "JSON parsing not fully implemented, falling back to text format"
-        );
+        // Logger not available - can uncomment when logging is properly set up
+        // utils::Logger::get_instance().log_warning(
+        //     "JSON parsing not fully implemented, falling back to text format"
+        // );
         return read_text_format(filename);
 
     } catch (const std::exception& e) {
@@ -370,7 +373,7 @@ std::string ParamReader::parse_command_line(int argc, char** argv,
         }
         else if (arg == "-o" || arg == "--output") {
             if (i + 1 >= argc) {
-                throw std::invalid_argument("Missing filename after " + arg);
+                throw std::invalid_argument("Missing value after " + arg);
             }
             params.output_prefix = argv[++i];
         }
@@ -393,7 +396,7 @@ std::string ParamReader::parse_command_line(int argc, char** argv,
 }
 
 void ParamReader::print_help(const std::string& program_name) {
-    std::cout << "Usage: " << program_name << " [options] [param_file]\n\n";
+    std::cout << "Usage: " << program_name << " [options] [param_file]\n";
     std::cout << "Options:\n";
     std::cout << "  -h, --help              Show this help message\n";
     std::cout << "  -f, --file <file>       Parameter file (text or JSON format)\n";

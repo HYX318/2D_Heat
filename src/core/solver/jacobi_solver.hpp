@@ -190,10 +190,9 @@ public:
                 residual = global_residual;
             }
 
-            // Verbose output
-            if (params.verbose && stats_.iterations % params.print_interval == 0) {
-                std::cout << "Iteration " << stats_.iterations
-                          << ", residual = " << residual << std::endl;
+            // Check residual periodically if needed
+            if (stats_.iterations % params.residual_check_interval == 0) {
+                // Could store residual history here if needed
             }
         }
 
@@ -203,14 +202,14 @@ public:
 
         auto end_time = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end_time - start_time;
-        stats_.convergence_time = elapsed.count();
+        stats_.solve_time = elapsed.count();
 
         if (!stats_.converged) {
             throw ConvergenceFailureException(
-                "Jacobi solver failed to converge",
-                stats_.iterations,
-                stats_.final_residual,
-                params.tolerance);
+                "Jacobi solver failed to converge after " +
+                std::to_string(stats_.iterations) + " iterations. " +
+                "Final residual: " + std::to_string(stats_.final_residual) +
+                ", tolerance: " + std::to_string(params.tolerance));
         }
     }
 

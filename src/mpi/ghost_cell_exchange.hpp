@@ -174,18 +174,18 @@ public:
      * @brief Get reference to Cartesian topology
      * @return Const reference to topology
      */
-    const CartesianTopology& topology() const { return topology; }
+    const CartesianTopology& topology() const { return topology_; }
 
     /**
      * @brief Get neighbor information
      * @return Const reference to neighbor info
      */
-    const NeighborInfo& neighbors() const { return topology.neighbors(); }
+    const NeighborInfo& neighbors() const { return topology_.neighbors(); }
 
 private:
-    int nx_;                           ///< Interior columns
-    int ny_;                           ///< Interior rows
-    const CartesianTopology& topology; ///< Reference to topology
+    int nx_;                              ///< Interior columns
+    int ny_;                              ///< Interior rows
+    const CartesianTopology& topology_;   ///< Reference to topology
     MPI_Datatype row_type_;            ///< Custom type for rows
     MPI_Datatype col_type_;            ///< Custom type for columns
     bool owns_types_;                  ///< True if we own the MPI types

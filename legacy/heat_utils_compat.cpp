@@ -24,9 +24,9 @@ void ReadParam(int& Nx, int& Ny, int& Nt, double& StabP) {
         StabP = 0.25;
         return;
     }
-    myfile myfile >> Nx >> Ny;
-    myfile myfile >> Nt;
-    myfile myfile >> StabP;
+    myfile >> Nx >> Ny;
+    myfile >> Nt;
+    myfile >> StabP;
     myfile.close();
 
     std::cout << "WARNING [legacy]: ReadParam is deprecated. "

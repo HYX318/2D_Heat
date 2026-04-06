@@ -2,6 +2,8 @@
 #include <iostream>
 #include <cmath>
 #include <iomanip>
+#include <numeric>
+#include <algorithm>
 
 Profiler::Profiler(bool enable_mpi_pmpi, int mpi_rank, int mpi_size)
     : enabled_(true)
@@ -428,7 +430,7 @@ void Profiler::write_json(const std::string& filename) const {
 
         file << "    \"" << tag << "\": {\n";
         file << "      \"send_count\": " << stats.send_count << ",\n";
-        file << "      "recv_count\": " << stats.recv_count << ",\n";
+        file << "      \"recv_count\": " << stats.recv_count << ",\n";
         file << "      \"bytes_sent\": " << stats.total_bytes_sent << ",\n";
         file << "      \"bytes_received\": " << stats.total_bytes_recv << "\n";
         file << "    }";
@@ -477,7 +479,7 @@ void Profiler::synchronize_and_analyze() {
     if (!flag) return;
 
     // Compute local total time
-    double local_total = total_comm_time();
+    double local_total = total_time();
 
     // Gather all times
     std::vector<double> all_times(mpi_size_);

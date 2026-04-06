@@ -17,8 +17,8 @@ CrankNicolson::CrankNicolson() {
 void CrankNicolson::initialize_solver(const TimeParams& params,
                                         const SolverParams& solver_params) {
     // For now, use Jacobi solver by default
-    // In a full implementation, we would allow the user to choose solver type
-    solver_ = std::make_unique<JacobiSolver>();
+    // In a full implementation, we would allow user to choose solver type
+    solver_ = std::make_unique<JacobiSolver<false>>();
 }
 
 void CrankNicolson::step(const Mesh2D& current, Mesh2D& next,
@@ -36,8 +36,8 @@ void CrankNicolson::step(const Mesh2D& current, Mesh2D& next,
     // (I - αΔt/2 ∇²) u^{n+1} = u^n + αΔt/2 ∇²u^n
 
     // Note: For a proper implementation, we would need to:
-    // 1. Compute the Laplacian of u^n
-    // 2. Build the RHS: u^n + (αΔt/2) * ∇²u^n
+    // 1. Compute Laplacian of u^n
+    // 2. Build RHS: u^n + (αΔt/2) * ∇²u^n
     // 3. Build the coefficient matrix A = I - αΔt/2 ∇²
     // 4. Solve Au^{n+1} = b using the iterative solver
 
@@ -69,9 +69,7 @@ void CrankNicolson::step(const Mesh2D& current, Mesh2D& next,
     stats_.total_time += elapsed.count();
     stats_.avg_step_time = stats_.total_time / stats_.step;
 
-    utils::Logger::get_instance().log_debug(
-        "CrankNicolson: Step " + std::to_string(stats_.step) +
-        ", t = " + std::to_string(stats_.t_current) +
-        ", time = " + std::to_string(elapsed.count()) + "s"
-    );
+    // Debug output (Logger::get_instance()() is not available; use direct output if needed)
+    // std::cerr << "CrankNicolson: Step " << stats_.step << ", t = " << stats_.t_current
+    //           << ", time = " << elapsed.count() << "s\n";
 }

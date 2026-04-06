@@ -4,7 +4,6 @@
  */
 
 #include "solution_exporter.hpp"
-#include "../utils/logger.hpp"
 #include <iomanip>
 #include <sstream>
 #include <sys/stat.h>
@@ -17,9 +16,10 @@ SolutionExporter::SolutionExporter(const std::string& output_prefix,
     , output_format_(output_format)
     , use_mpi_(use_mpi)
 {
-    utils::Logger::get_instance().log_info(
-        "SolutionExporter initialized with format: " + get_format_name(output_format_)
-    );
+    // Logger not available - can uncomment when logging is properly set up
+    // utils::Logger::get_instance().log_info(
+    //     "SolutionExporter initialized with format: " + get_format_name(output_format_)
+    // );
 }
 
 SolutionExporter::~SolutionExporter() = default;
@@ -37,9 +37,10 @@ void SolutionExporter::export_solution(const Mesh2D& mesh,
                                         size_t step,
                                         OutputFormat format,
                                         const std::string& filename) {
-    utils::Logger::get_instance().log_info(
-        "Exporting solution to " + filename + " (format: " + get_format_name(format) + ")"
-    );
+    // Logger not available - can uncomment when logging is properly set up
+    // utils::Logger::get_instance().log_info(
+    //     "Exporting solution to " + filename + " (format: " + get_format_name(format) + ")"
+    // );
 
     // Check if we should write (MPI mode: only root writes)
     if (use_mpi_) {
@@ -142,10 +143,11 @@ void SolutionExporter::export_text(const Mesh2D& mesh,
 
     file.close();
 
-    utils::Logger::get_instance().log_info(
-        "Exported " + std::to_string(mesh.nx() * mesh.ny()) +
-        " points to " + filename
-    );
+    // Logger not available - can uncomment when logging is properly set up
+    // utils::Logger::get_instance().log_info(
+    //     "Exported " + std::to_string(mesh.nx() * mesh.ny()) +
+    //     " points to " + filename
+    // );
 }
 
 void SolutionExporter::export_vtk(const Mesh2D& mesh,
@@ -195,10 +197,11 @@ void SolutionExporter::export_vtk(const Mesh2D& mesh,
 
     file.close();
 
-    utils::Logger::get_instance().log_info(
-        "Exported VTK file: " + filename +
-        " (" + std::to_string(num_points) + " points)"
-    );
+    // Logger not available - can uncomment when logging is properly set up
+    // utils::Logger::get_instance().log_info(
+    //     "Exported VTK file: " + filename +
+    //     " " + std::to_string(num_points) + " points)"
+    // );
 }
 
 void SolutionExporter::export_hdf5(const Mesh2D& mesh,
@@ -209,9 +212,10 @@ void SolutionExporter::export_hdf5(const Mesh2D& mesh,
     // In a real implementation, we would use the HDF5 C++ API
     // or high-level libraries like h5pp
 
-    utils::Logger::get_instance().log_warning(
-        "HDF5 export not implemented - falling back to text format"
-    );
+    // Logger not available - can uncomment when logging is properly set up
+    // utils::Logger::get_instance().log_warning(
+    //     "HDF5 export not implemented - falling back to text format"
+    // );
 
     // Fall back to text format
     std::string txt_filename = filename;
@@ -227,7 +231,7 @@ bool SolutionExporter::can_open_file(const std::string& filename) const {
 }
 
 void SolutionExporter::ensure_directory_exists(const std::string& filename) const {
-    // Find the last directory separator
+    // Find of last directory separator
     size_t pos = filename.find_last_of('/');
     if (pos == std::string::npos) {
         pos = filename.find_last_of('\\');

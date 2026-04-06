@@ -20,10 +20,10 @@
 #include "../utils/logger.hpp"
 
 /**
- * @enum Direction
+ * @enum CardinalDirection
  * @brief Cardinal directions for boundary conditions and ghost cell operations
  */
-enum class Direction {
+enum class CardinalDirection {
     North = 0,  ///< +Y direction
     South = 1,  ///< -Y direction
     East = 2,   ///< +X direction
@@ -278,7 +278,7 @@ public:
      * @param dir Direction to apply BC to
      * @param value Boundary value
      */
-    void apply_bc_at_direction(Direction dir, double value);
+    void apply_bc_at_direction(CardinalDirection dir, double value);
 
     /**
      * @brief Compute Laplacian using 5-point stencil
@@ -381,7 +381,7 @@ public:
      * @brief Get pointer to ghost cell exchange (may be nullptr)
      * @return Pointer to ghost cell exchange or nullptr if not using MPI
      */
-    GhostCellExchange* ghost_exchange() const noexcept { return ghost_exchange_; }
+    GhostCellExchange* ghost_exchange() const noexcept { return ghost_exchange_.get(); }
 
 private:
     // Grid dimensions

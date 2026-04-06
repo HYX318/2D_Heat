@@ -3,7 +3,7 @@
 #include <string>
 
 GhostCellExchange::GhostCellExchange(int nx, int ny, const CartesianTopology& topology)
-    : nx_(nx), ny_(ny), topology(topology), row_type_(MPI_DATATYPE_NULL),
+    : nx_(nx), ny_(ny), topology_(topology), row_type_(MPI_DATATYPE_NULL),
       col_type_(MPI_DATATYPE_NULL), owns_types_(false) {
 
     validate_dimensions();
@@ -18,7 +18,7 @@ GhostCellExchange::~GhostCellExchange() {
 }
 
 GhostCellExchange::GhostCellExchange(GhostCellExchange&& other) noexcept
-    : nx_(other.nx_), ny_(other.ny_), topology(other.topology),
+    : nx_(other.nx_), ny_(other.ny_), topology_(other.topology_),
       row_type_(other.row_type_), col_type_(other.col_type_),
       owns_types_(other.owns_types_) {
     other.owns_types_ = false;
@@ -55,9 +55,9 @@ void GhostCellExchange::exchange(utils::Array2D& array) {
         );
     }
 
-    const auto& neighbors = topology.neighbors();
-    MPI_Comm comm = topology.communicator();
-    int my_rank = topology.rank();
+    const auto& neighbors = topology_.neighbors();
+    MPI_Comm comm = topology_.communicator();
+    int my_rank = topology_.rank();
 
     // Array dimensions with ghost cells
     int total_cols = nx_ + 2;
@@ -122,8 +122,8 @@ void GhostCellExchange::exchange_async(utils::Array2D& array, MPI_Request* reque
         );
     }
 
-    const auto& neighbors = topology.neighbors();
-    MPI_Comm comm = topology.communicator();
+    const auto& neighbors = topology_.neighbors();
+    MPI_Comm comm = topology_.communicator();
 
     // Define row and column indices
     int south_row = 1;
