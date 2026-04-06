@@ -4,7 +4,7 @@ MPI solver execution and management.
 import subprocess
 import os
 import glob
-from typing import Dict, List
+from typing import Dict, List, Optional
 from .output_monitor import monitor_directory
 
 
@@ -32,6 +32,107 @@ class SolverRunner:
         self.build_dir = build_dir
         self.executable_path = os.path.join(build_dir, "bin", "heat_equation")
 
+    def sanitize_output_path(self, output_prefix: str) -> str:
+        """
+        Sanitize output path to prevent directory traversal attacks.
+        Rejects paths containing '..' to prevent writing outside intended directory.
+
+        Args:
+            output_prefix: The output file prefix path
+
+        Returns:
+            Absolute path relative to current working directory
+
+        Raises:
+            ValueError: If path contains directory traversal attempts
+        """
+        # Check for directory traversal attempts
+        if '..' in output_prefix:
+            raise ValueError(
+                f"Path traversal detected in output_prefix: {output_prefix}. "
+                "Output paths cannot contain '..' for security reasons."
+            )
+
+        # Convert to absolute path to ensure it's within the project structure
+        abs_path = os.path.abspath(output_prefix)
+
+        return abs_path
+
+    def validate_parameters(self) -> None:
+        """
+        Validate all solver parameters in the config.
+        Ensures numeric parameters are within reasonable bounds and
+        string parameters match expected choices.
+
+        Raises:
+            ValueError: If any parameter is invalid
+        """
+        # Validate numeric parameters
+        numeric_params = {
+            'nx': (1, 100000),      # Minimum 1, maximum 100000
+            'ny': (1, 100000),
+            'nt': (1, 1000000),
+        }
+
+        for param, (min_val, max_val) in numeric_params.items():
+            if param in self.config:
+                value = self.config[param]
+                try:
+                    value = float(value)
+                except (TypeError, ValueError):
+                    raise ValueError(
+                        f"Parameter '{param}' must be numeric, got: {value}"
+                    )
+
+                if value < min_val or value > max_val:
+                    raise ValueError(
+                        f"Parameter '{param}' must be between {min_val} and {max_val}, "
+                        f"got: {value}"
+                    )
+
+        # Validate dt (time step) - must be positive and reasonable
+        if 'dt' in self.config:
+            dt = self.config['dt']
+            try:
+                dt = float(dt)
+            except (TypeError, ValueError):
+                raise ValueError(f"Parameter 'dt' must be numeric, got: {dt}")
+
+            if dt <= 0:
+                raise ValueError(f"Parameter 'dt' must be positive, got: {dt}")
+
+            if dt > 1.0:
+                raise ValueError(f"Parameter 'dt' should be less than 1.0, got: {dt}")
+
+        # Validate solver type (string enum)
+        valid_solvers = ['sequential', 'parallel', 'cuda']
+        if 'solver' in self.config:
+            solver = self.config['solver']
+            if solver not in valid_solvers:
+                raise ValueError(
+                    f"Invalid solver '{solver}'. Must be one of: {', '.join(valid_solvers)}"
+                )
+
+        # Validate scheme (string enum)
+        valid_schemes = ['explicit', 'implicit']
+        if 'scheme' in self.config:
+            scheme = self.config['scheme']
+            if scheme not in valid_schemes:
+                raise ValueError(
+                    f"Invalid scheme '{scheme}'. Must be one of: {', '.join(valid_schemes)}"
+                )
+
+        # Validate processes count
+        if 'processes' in self.config:
+            processes = self.config['processes']
+            try:
+                processes = int(processes)
+            except (TypeError, ValueError):
+                raise ValueError(f"Parameter 'processes' must be integer, got: {processes}")
+
+            if processes < 1:
+                raise ValueError(f"Parameter 'processes' must be at least 1, got: {processes}")
+
     def validate_environment(self) -> None:
         """Validate that build directory and executable exist."""
         if not os.path.exists(self.build_dir):
@@ -51,6 +152,9 @@ class SolverRunner:
         Construct full mpirun command with all parameters.
         Returns: List of command arguments for subprocess
         """
+        # Validate all parameters before building command
+        self.validate_parameters()
+
         # Start with mpirun command
         processes = self.config.get('processes', 1)
         if processes > 1:
@@ -82,12 +186,35 @@ class SolverRunner:
 
         return process
 
-    def wait_for_completion(self, process: subprocess.Popen, show_output: bool = False) -> int:
+    def wait_for_completion(
+        self,
+        process: subprocess.Popen,
+        show_output: bool = False,
+        timeout: Optional[float] = None
+    ) -> int:
         """
         Wait for solver to complete and optionally show output.
-        Returns exit code.
+
+        Args:
+            process: The subprocess.Popen object
+            show_output: Whether to print stdout
+            timeout: Maximum time to wait in seconds. None means wait indefinitely.
+
+        Returns:
+            Exit code
+
+        Raises:
+            subprocess.TimeoutExpired: If process doesn't complete within timeout
         """
-        stdout, stderr = process.communicate()
+        try:
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+            raise subprocess.TimeoutExpired(
+                f"Solver process timed out after {timeout} seconds",
+                process.pid
+            )
 
         if show_output and stdout:
             print(stdout)
@@ -98,8 +225,11 @@ class SolverRunner:
         return process.returncode
 
     def get_output_prefix(self) -> str:
-        """Get the output file prefix from config."""
+        """Get the output file prefix from config with sanitization."""
         output_prefix = self.config.get('output_prefix', 'output/solution')
+
+        # Sanitize path to prevent directory traversal
+        output_prefix = self.sanitize_output_path(output_prefix)
 
         # Ensure output directory exists
         output_dir = os.path.dirname(output_prefix)
@@ -128,17 +258,31 @@ class SolverRunner:
 
         return sorted(files)
 
-    def run_and_collect(self, show_output: bool = False) -> List[str]:
+    def run_and_collect(
+        self,
+        show_output: bool = False,
+        timeout: Optional[float] = None
+    ) -> List[str]:
         """
         Run solver and collect output files in one call.
-        Returns list of generated output files.
+
+        Args:
+            show_output: Whether to print stdout
+            timeout: Maximum time to wait in seconds. None means wait indefinitely.
+
+        Returns:
+            List of generated output files
+
+        Raises:
+            RuntimeError: If solver exits with non-zero code
+            subprocess.TimeoutExpired: If process doesn't complete within timeout
         """
         # Get initial file count
         initial_files = set(self.collect_output_files())
 
         # Run solver
         process = self.run()
-        exit_code = self.wait_for_completion(process, show_output)
+        exit_code = self.wait_for_completion(process, show_output, timeout)
 
         if exit_code != 0:
             raise RuntimeError(
