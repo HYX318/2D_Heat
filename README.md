@@ -453,4 +453,25 @@ This project is licensed under the MIT License - see LICENSE file for details.
 
 ---
 
+# Visualization
+
+The project includes Python tools for automatic visualization of solver results.
+
+## Quick Visualization
+
+```bash
+cd visualization
+pip install -r requirements.txt
+
+# Run solver with preset and visualize automatically
+python run_and_visualize.py --preset medium
+
+# Custom run with visualization
+python run_and_visualize.py -n 4 -nx 100 -ny 100 -nt 500 -solver SOR
+```
+
+See [visualization/README.md](visualization/README.md) for detailed usage.
+
+---
+
 **Happy Computing!**
