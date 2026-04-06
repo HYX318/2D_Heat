@@ -104,8 +104,8 @@ class SolverRunner:
             if dt > 1.0:
                 raise ValueError(f"Parameter 'dt' should be less than 1.0, got: {dt}")
 
-        # Validate solver type (string enum)
-        valid_solvers = ['sequential', 'parallel', 'cuda']
+        # Validate solver type (string enum) - matching C++ solver options
+        valid_solvers = ['Jacobi', 'SOR', 'CG', 'ConjugateGradient', 'GaussSeidel']
         if 'solver' in self.config:
             solver = self.config['solver']
             if solver not in valid_solvers:
@@ -113,8 +113,8 @@ class SolverRunner:
                     f"Invalid solver '{solver}'. Must be one of: {', '.join(valid_solvers)}"
                 )
 
-        # Validate scheme (string enum)
-        valid_schemes = ['explicit', 'implicit']
+        # Validate scheme (string enum) - matching C++ solver options
+        valid_schemes = ['ImplicitEuler', 'CrankNicolson', 'ExplicitEuler', 'RungeKutta4']
         if 'scheme' in self.config:
             scheme = self.config['scheme']
             if scheme not in valid_schemes:
