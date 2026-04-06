@@ -1,4 +1,4 @@
-# 2x Heat Equation Solver - Python Visualization
+# 2D Heat Equation Solver - Python Visualization
 
 Automated visualization system for MPI heat equation solver.
 
