@@ -1,0 +1,30 @@
+presets:
+  small:
+    processes: 2
+    nx: 50
+    ny: 50
+    nt: 100
+    dt: 0.01
+    solver: Jacobi
+    scheme: ImplicitEuler
+    output_prefix: "output/small"
+
+  medium:
+    processes: 4
+    nx: 100
+    ny: 100
+    nt: 500
+    dt: 0.005
+    solver: SOR
+    scheme: CrankNicolson
+    output_prefix: "output/medium"
+
+  large:
+    processes: 8
+    nx: 200
+    ny: 200
+    nt: 2000
+    dt: 0.002
+    solver: CG
+    scheme: CrankNicolson
+    output_prefix: "output/large"
