@@ -31,7 +31,6 @@ include/
 # Test output
 test_log.txt
 Proc-*.txt
-*.txt
 
 # IDE files
 .vscode/
