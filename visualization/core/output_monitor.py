@@ -12,8 +12,7 @@ def monitor_directory(directory: str, pattern: str, interval: float = 0.5) -> It
     Generator that yields new files as they appear.
     Useful for showing progress during long solver runs.
     """
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+    os.makedirs(directory, exist_ok=True)
 
     seen_files = set()
 
@@ -33,8 +32,7 @@ def wait_for_files(expected_count: int, directory: str, pattern: str, timeout: i
     Wait until expected number of files exist.
     Returns list of file paths when ready.
     """
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+    os.makedirs(directory, exist_ok=True)
 
     start_time = time.time()
 
