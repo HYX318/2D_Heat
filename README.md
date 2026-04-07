@@ -32,7 +32,7 @@ A high-performance parallel computing application for solving the 2D heat diffus
 # Configure and build
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
- make -j$(sysctl -n hw.ncpu)
+make -j$(sysctl -n hw.ncpu)
 
 # Run tests (if enabled)
 ctest
