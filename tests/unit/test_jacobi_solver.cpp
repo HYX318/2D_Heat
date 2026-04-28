@@ -4,17 +4,16 @@
  *
  * Test suite for Jacobi solver implementation.
  */
-
 #include <gtest/gtest.h>
 #include <mpi.h>
 #include <cmath>
 #include <memory>
 
-#include "src/core/solver/solver_interface.hpp"
-#include "src/core/solver/jacobi_solver.hpp"
-#include "src/mpi/ghost_cell_exchange.hpp"
-#include "src/mpi/cartesian_topology.hpp"
-#include "src/utils/array2d.hpp"
+#include "core/solver/solver_interface.hpp"
+#include "core/solver/jacobi_solver.hpp"
+#include "mpi/ghost_cell_exchange.hpp"
+#include "mpi/cartesian_topology.hpp"
+#include "utils/array2d.hpp"
 
 using namespace utils;
 
@@ -69,7 +68,7 @@ protected:
                 // (I - λ*L)u = b
                 if (i >= 1 && i <= Nx && j >= 1 && j <= Ny) {
                     double laplacian = exact(j+1, i) - 2.0*exact(j, i) + exact(j-1, i) +
-                                    exact(j, i+1) - 2.0*exact(j, i) + exact(j, i-1);
+                                        exact(j, i+1) - 2.0*exact(j, i) + exact(j, i-1);
                     rhs(j, i) = exact(j, i) - lambda * laplacian;
                 } else {
                     // Boundary
@@ -111,7 +110,9 @@ TEST_F(JacobiSolverTest, ConvergenceTest) {
     int Ny = 10;
     double lambda = 0.1;
 
-    auto [rhs, exact] = create_test_problem(Nx, Ny, lambda);
+    auto problem = create_test_problem(Nx, Ny, lambda);
+    Array2D& rhs = problem.first;
+    Array2D& exact = problem.second;
 
     // Create solver
     JacobiSolver<false> solver;
@@ -148,7 +149,9 @@ TEST_F(JacobiSolverTest, SerialSolverBasicTest) {
     int Ny = 5;
     double lambda = 0.25;
 
-    auto [rhs, exact] = create_test_problem(Nx, Ny, lambda);
+    auto problem = create_test_problem(Nx, Ny, lambda);
+    Array2D& rhs = problem.first;
+    Array2D& exact = problem.second;
 
     JacobiSolver<false> solver;
     Array2D solution(Ny + 2, Nx + 2);
@@ -180,7 +183,9 @@ TEST_F(JacobiSolverTest, ResetTest) {
     int Ny = 6;
     double lambda = 0.15;
 
-    auto [rhs, exact] = create_test_problem(Nx, Ny, lambda);
+    auto problem = create_test_problem(Nx, Ny, lambda);
+    Array2D& rhs = problem.first;
+    Array2D& exact = problem.second;
 
     JacobiSolver<false> solver;
     Array2D solution(Ny + 2, Nx + 2);
@@ -236,7 +241,9 @@ TEST_F(JacobiSolverTest, ResidualComputationTest) {
     int Ny = 6;
     double lambda = 0.3;
 
-    auto [rhs, exact] = create_test_problem(Nx, Ny, lambda);
+    auto problem = create_test_problem(Nx, Ny, lambda);
+    Array2D& rhs = problem.first;
+    Array2D& exact = problem.second;
 
     JacobiSolver<false> solver;
     Array2D solution(Ny + 2, Nx + 2);
@@ -285,7 +292,9 @@ TEST_F(JacobiSolverTest, EdgeCasesTest) {
         int Ny = 2;
         double lambda = 0.1;
 
-        auto [rhs, exact] = create_test_problem(Nx, Ny, lambda);
+        auto problem = create_test_problem(Nx, Ny, lambda);
+        Array2D& rhs = problem.first;
+        Array2D& exact = problem.second;
 
         JacobiSolver<false> solver;
         Array2D solution(Ny + 2, Nx + 2);
@@ -305,7 +314,9 @@ TEST_F(JacobiSolverTest, EdgeCasesTest) {
         int Ny = 5;
         double lambda = 0.001;
 
-        auto [rhs, exact] = create_test_problem(Nx, Ny, lambda);
+        auto problem = create_test_problem(Nx, Ny, lambda);
+        Array2D& rhs = problem.first;
+        Array2D& exact = problem.second;
 
         JacobiSolver<false> solver;
         Array2D solution(Ny + 2, Nx + 2);
@@ -325,7 +336,9 @@ TEST_F(JacobiSolverTest, EdgeCasesTest) {
         int Ny = 5;
         double lambda = 0.4;  // Still < 0.5 for stability
 
-        auto [rhs, exact] = create_test_problem(Nx, Ny, lambda);
+        auto problem = create_test_problem(Nx, Ny, lambda);
+        Array2D& rhs = problem.first;
+        Array2D& exact = problem.second;
 
         JacobiSolver<false> solver;
         Array2D solution(Ny + 2, Nx + 2);
@@ -350,7 +363,9 @@ TEST_F(JacobiSolverTest, PerformanceTest) {
     int Ny = 50;
     double lambda = 0.2;
 
-    auto [rhs, exact] = create_test_problem(Nx, Ny, lambda);
+    auto problem = create_test_problem(Nx, Ny, lambda);
+    Array2D& rhs = problem.first;
+    Array2D& exact = problem.second;
 
     JacobiSolver<false> solver;
     Array2D solution(Ny + 2, Nx + 2);
@@ -385,18 +400,3 @@ TEST_F(JacobiSolverTest, PerformanceTest) {
 /**
  * Main function for MPI test execution
  */
-int main(int argc, char** argv) {
-    // Initialize MPI
-    MPI_Init(&argc, &argv);
-
-    // Initialize Google Test
-    ::testing::InitGoogleTest(&argc, argv);
-
-    // Run tests
-    int result = RUN_ALL_TESTS();
-
-    // Finalize MPI
-    MPI_Finalize();
-
-    return result;
-}

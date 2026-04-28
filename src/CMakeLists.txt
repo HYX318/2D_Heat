@@ -22,10 +22,10 @@ add_subdirectory(mesh)
 
 # Build main executable
 add_executable(heat_equation ${SOURCES})
-# Only link top-level libraries - CMake will handle transitive dependencies
-# mesh depends on mpi and utils (PUBLIC), core depends on utils (PUBLIC)
 target_link_libraries(heat_equation
+    heat_equation_utils
     heat_equation_mesh
+    heat_equation_mpi
     heat_equation_core
     heat_equation_io
     ${MPI_CXX_LIBRARIES})

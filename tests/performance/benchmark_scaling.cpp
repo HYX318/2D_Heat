@@ -239,7 +239,7 @@ void test_weak_scaling(int rank, int size, size_t per_proc_grid_size,
         cout << "  Total grid size: " << total_grid_size << "\n";
         cout << "  Compute time:  " << fixed << setprecision(2) << max_compute_time << " ms\n";
         cout << "  Communication time: " << fixed << setprecision(2) << max_comm_time << " ms\n";
-        cout << "  Total time:    " << fixed(4) << setprecision(2) << max_total_time << " ms\n";
+        cout << "  Total time:    " << fixed << setprecision(2) << max_total_time << " ms\n";
         cout << "  Efficiency:    " << fixed << setprecision(2) << efficiency << "%\n";
         cout << "  Performance:  " << fixed << setprecision(2) << gflops << " GFLOPS\n";
 

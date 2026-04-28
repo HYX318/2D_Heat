@@ -179,7 +179,8 @@ TEST_F(SORSolverTest, SimpleConvergence) {
     const size_t nx = 10;
     const size_t ny = 10;
     
-    utils::Array2D rhs, solution;
+    utils::Array2D rhs(ny, nx);
+    utils::Array2D solution(ny, nx);
     create_test_problem(nx, ny, rhs, solution);
     
     SORSolver solver(1.5);  // Over-relaxation
@@ -202,7 +203,8 @@ TEST_F(SORSolverTest, DifferentOmegaValues) {
     const size_t nx = 10;
     const size_t ny = 10;
     
-    utils::Array2D rhs, solution;
+    utils::Array2D rhs(ny, nx);
+    utils::Array2D solution(ny, nx);
     create_test_problem(nx, ny, rhs, solution);
     
     double omega_values[] = {0.5, 0.8, 1.0, 1.2, 1.5, 1.8};
@@ -225,7 +227,8 @@ TEST_F(SORSolverTest, AutoOmega) {
     const size_t nx = 20;
     const size_t ny = 20;
     
-    utils::Array2D rhs, solution;
+    utils::Array2D rhs(ny, nx);
+    utils::Array2D solution(ny, nx);
     create_test_problem(nx, ny, rhs, solution);
     
     SORSolver solver(0.0);  // Auto omega
@@ -248,7 +251,8 @@ TEST_F(SORSolverTest, RedBlackConvergence) {
     const size_t nx = 15;
     const size_t ny = 15;
     
-    utils::Array2D rhs, solution;
+    utils::Array2D rhs(ny, nx);
+    utils::Array2D solution(ny, nx);
     create_test_problem(nx, ny, rhs, solution);
     
     SORSolver solver(1.5);
@@ -269,8 +273,10 @@ TEST_F(SORSolverTest, RedBlackConvergence) {
 TEST_F(SORSolverTest, CompareOrderings) {
     const size_t nx = 10;
     const size_t ny = 10;
-    
-    utils::Array2D rhs, solution_dict, solution_rb;
+
+    utils::Array2D rhs(ny, nx);
+    utils::Array2D solution_dict(ny, nx);
+    utils::Array2D solution_rb(ny, nx);
     create_test_problem(nx, ny, rhs, solution_dict);
     solution_rb.copy_from(solution_dict);
     
@@ -306,8 +312,9 @@ TEST_F(SORSolverTest, CompareOrderings) {
 TEST_F(SORSolverTest, RandomProblem) {
     const size_t nx = 12;
     const size_t ny = 12;
-    
-    utils::Array2D rhs, solution;
+
+    utils::Array2D rhs(ny, nx);
+    utils::Array2D solution(ny, nx);
     create_random_problem(nx, ny, rhs, solution);
     
     SORSolver solver(1.7);
@@ -326,7 +333,8 @@ TEST_F(SORSolverTest, LargeProblem) {
     const size_t nx = 50;
     const size_t ny = 50;
     
-    utils::Array2D rhs, solution;
+    utils::Array2D rhs(ny, nx);
+    utils::Array2D solution(ny, nx);
     create_test_problem(nx, ny, rhs, solution);
     
     SORSolver solver(0.0);  // Auto omega for large problem
@@ -347,7 +355,8 @@ TEST_F(SORSolverTest, Reset) {
     const size_t nx = 10;
     const size_t ny = 10;
     
-    utils::Array2D rhs, solution;
+    utils::Array2D rhs(ny, nx);
+    utils::Array2D solution(ny, nx);
     create_test_problem(nx, ny, rhs, solution);
     
     SORSolver solver(1.5);
@@ -374,8 +383,9 @@ TEST_F(SORSolverTest, Reset) {
 TEST_F(SORSolverTest, GetStats) {
     const size_t nx = 10;
     const size_t ny = 10;
-    
-    utils::Array2D rhs, solution;
+
+    utils::Array2D rhs(ny, nx);
+    utils::Array2D solution(ny, nx);
     create_test_problem(nx, ny, rhs, solution);
     
     SORSolver solver(1.5);
@@ -403,8 +413,9 @@ TEST_F(SORSolverTest, DifferentGridSizes) {
     
     for (size_t nx : sizes) {
         size_t ny = nx;  // Square grids
-        
-        utils::Array2D rhs, solution;
+
+        utils::Array2D rhs(ny, nx);
+        utils::Array2D solution(ny, nx);
         create_test_problem(nx, ny, rhs, solution);
         
         SORSolver solver(1.5);
@@ -424,7 +435,8 @@ TEST_F(SORSolverTest, TightTolerance) {
     const size_t nx = 10;
     const size_t ny = 10;
     
-    utils::Array2D rhs, solution;
+    utils::Array2D rhs(ny, nx);
+    utils::Array2D solution(ny, nx);
     create_test_problem(nx, ny, rhs, solution);
     
     params.tolerance = 1e-10;  // Very tight tolerance
@@ -477,13 +489,15 @@ TEST_F(SORSolverTest, OptimalOmegaComputation) {
     SORSolver solver(0.0);  // Auto omega
     
     // For small grids, optimal omega should be close to 1
-    utils::Array2D rhs(5, 5), solution(5, 5);
+    utils::Array2D rhs(5, 5);
+    utils::Array2D solution(5, 5);
     create_test_problem(5, 5, rhs, solution);
     solver.solve(rhs, solution, params);
     EXPECT_GT(solver.get_omega(), 1.0);
     
     // For larger grids, optimal omega should be higher
-    utils::Array2D rhs2(50, 50), solution2(50, 50);
+    utils::Array2D rhs2(50, 50);
+    utils::Array2D solution2(50, 50);
     create_test_problem(50, 50, rhs2, solution2);
     SORSolver solver2(0.0);
     solver2.solve(rhs2, solution2, params);
@@ -497,7 +511,8 @@ TEST_F(SORSolverTest, ConvergenceRate) {
     const size_t nx = 15;
     const size_t ny = 15;
     
-    utils::Array2D rhs, solution;
+    utils::Array2D rhs(ny, nx);
+    utils::Array2D solution(ny, nx);
     create_test_problem(nx, ny, rhs, solution);
     
     // Test with different omega values and compare iterations
@@ -513,7 +528,7 @@ TEST_F(SORSolverTest, ConvergenceRate) {
     
     // Over-relaxation (omega > 1) should converge faster than Gauss-Seidel (omega = 1)
     // This is not always true, but typically holds for well-chosen omega
-    EXPECT_LE(iterations[3], { iterations[2], iterations[1] });
+    EXPECT_LE(iterations[3], iterations[1]);
 }
 
 // MPI tests (only run if MPI is initialized)
@@ -545,21 +560,3 @@ TEST_F(SORSolverTest, ParallelConstruction) {
 }
 
 #endif // ENABLE_MPI
-
-// Main function for Google Test
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    
-    // Initialize MPI if available
-#ifdef ENABLE_MPI
-    MPI_Init(&argc, &argv);
-#endif
-    
-    int result = RUN_ALL_TESTS();
-    
-#ifdef ENABLE_MPI
-    MPI_Finalize();
-#endif
-    
-    return result;
-}

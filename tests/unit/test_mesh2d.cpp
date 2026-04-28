@@ -11,6 +11,8 @@
 #include <cmath>
 #include <limits>
 
+using namespace test_utils;
+
 // =============================================================================
 // Test Suite: ConstructionTest
 // Tests for various constructors
@@ -384,7 +386,7 @@ TEST(BoundaryConditionTest, ApplyBCAtDirectionNorth) {
     CartesianTopology topo(MPI_COMM_WORLD);
     Mesh2D mesh(5, 4, 2.0, 1.5, topo);
 
-    mesh.apply_bc_at_direction(Direction::North, 100.0);
+    mesh.apply_bc_at_direction(CardinalDirection::North, 100.0);
 
     // Check only North boundary
     for (size_t j = 0; j < mesh.total_nx(); ++j) {
@@ -398,7 +400,7 @@ TEST(BoundaryConditionTest, ApplyBCAtDirectionSouth) {
     CartesianTopology topo(MPI_COMM_WORLD);
     Mesh2D mesh(5, 4, 2.0, 1.5, topo);
 
-    mesh.apply_bc_at_direction(Direction::South, 200.0);
+    mesh.apply_bc_at_direction(CardinalDirection::South, 200.0);
 
     // Check only South boundary
     for (size_t j = 0; j < mesh.total_nx(); ++j) {
@@ -412,7 +414,7 @@ TEST(BoundaryConditionTest, ApplyBCAtDirectionEast) {
     CartesianTopology topo(MPI_COMM_WORLD);
     Mesh2D mesh(5, 4, 2.0, 1.5, topo);
 
-    mesh.apply_bc_at_direction(Direction::East, 300.0);
+    mesh.apply_bc_at_direction(CardinalDirection::East, 300.0);
 
     // Check only East boundary
     for (size_t i = 0; i < mesh.total_ny(); ++i) {
@@ -426,7 +428,7 @@ TEST(BoundaryConditionTest, ApplyBCAtDirectionWest) {
     CartesianTopology topo(MPI_COMM_WORLD);
     Mesh2D mesh(5, 4, 2.0, 1.5, topo);
 
-    mesh.apply_bc_at_direction(Direction::West, 400.0);
+    mesh.apply_bc_at_direction(CardinalDirection::West, 400.0);
 
     // Check only West boundary
     for (size_t i = 0; i < mesh.total_ny(); ++i) {
@@ -688,8 +690,8 @@ TEST(ArithmeticTest, CopyFromOperation) {
     mesh1.fill(10.0);
     mesh2.copy_from(mesh1);
 
-    for (size_t i = 0; i < mesh.ny(); ++i) {
-        for (size_t j = 0; j < mesh.nx(); ++j) {
+    for (size_t i = 0; i < mesh2.ny(); ++i) {
+        for (size_t j = 0; j < mesh2.nx(); ++j) {
             EXPECT_EQ(mesh2(i, j), 10.0);
         }
     }
@@ -729,8 +731,8 @@ TEST(ArithmeticTest, AddOperation) {
 
     mesh1.add(mesh2);
 
-    for (size_t i = 0; i < mesh.ny(); ++i) {
-        for (size_t j = 0; j < mesh.nx(); ++j) {
+    for (size_t i = 0; i < mesh1.ny(); ++i) {
+        for (size_t j = 0; j < mesh1.nx(); ++j) {
             EXPECT_DOUBLE_EQ(mesh1(i, j), 8.0);
         }
     }
@@ -745,8 +747,8 @@ TEST(ArithmeticTest, SubtractOperation) {
 
     mesh1.subtract(mesh2);
 
-    for (size_t i = 0; i < mesh.ny(); ++i) {
-        for (size_t j = 0; j < mesh.nx(); ++j) {
+    for (size_t i = 0; i < mesh1.ny(); ++i) {
+        for (size_t j = 0; j < mesh1.nx(); ++j) {
             EXPECT_DOUBLE_EQ(mesh1(i, j), 2.0);
         }
     }
@@ -881,15 +883,3 @@ TEST(MPITopologyIntegration, GhostExchangeUsesTopology) {
 // Main function for MPI-enabled tests
 // =============================================================================
 
-int main(int argc, char** argv) {
-    // Initialize MPI for tests that need it
-    test_utils::ensure_mpi_initialized(argc, argv);
-
-    ::testing::InitGoogleTest(&argc, argv);
-    int result = RUN_ALL_TESTS();
-
-    // Don't finalize MPI here - let the test framework handle it
-    // or the OS will clean up
-
-    return result;
-}

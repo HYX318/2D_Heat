@@ -288,25 +288,3 @@ TEST_F(MPIContextTest, DISABLED_AbortTest) {
  * This function initializes Google Test and runs all tests.
  * It should be called via mpirun/mpiexec to initialize MPI.
  */
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-
-    // Initialize MPI if not already initialized
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    if (!mpi_initialized) {
-        MPI_Init(&argc, &argv);
-    }
-
-    int result = RUN_ALL_TESTS();
-
-    // Finalize MPI if we initialized it
-    MPI_Initialized(&mpi_initialized);
-    int mpi_finalized = 0;
-    MPI_Finalized(&mpi_finalized);
-    if (mpi_initialized && !mpi_finalized) {
-        MPI_Finalize();
-    }
-
-    return result;
-}

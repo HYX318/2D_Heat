@@ -57,6 +57,11 @@ void GhostCellExchange::exchange(utils::Array2D& array) {
 
     const auto& neighbors = topology_.neighbors();
     MPI_Comm comm = topology_.communicator();
+    int my_rank = topology_.rank();
+
+    // Array dimensions with ghost cells
+    int total_cols = nx_ + 2;
+    int total_rows = ny_ + 2;
 
     // Define row and column indices
     int south_row = 1;              // Interior row adjacent to south ghost

@@ -22,14 +22,14 @@ TEST(CGTest, ConstructionTest) {
         EXPECT_FALSE(solver.is_parallel());
         EXPECT_EQ(solver.get_rank(), 0);
         EXPECT_EQ(solver.get_size(), 1);
-        EXPECT_EQ(solver.get_type(), SolverType::CG);
+        EXPECT_EQ(solver.get_type(), SolverType::ConjugateGradient);
         EXPECT_EQ(solver.get_restarts(), 0);
     }
 
     // Test with preconditioner
     {
         ConjugateGradientSolver solver(true, 0.1);
-        EXPECT_EQ(solver.get_type(), SolverType::PCG);
+        EXPECT_EQ(solver.get_type(), SolverType::PreconditionedCG);
     }
 
     // Test parallel construction (mock)
@@ -116,7 +116,7 @@ TEST(CGTest, PCGConvergenceTest) {
     const auto& stats = solver.get_stats();
 
     EXPECT_LT(stats.residual, params.tolerance);
-    EXPECT_EQ(solver.get_type(), SolverType::PCG);
+    EXPECT_EQ(solver.get_type(), SolverType::PreconditionedCG);
 }
 
 /**
@@ -170,7 +170,9 @@ TEST(CGTest, SpeedupTest) {
             }
         }
 
-        std::swap(x.data(), x_old.data());
+        Array2D temp = std::move(x);
+        x = std::move(x_old);
+        x_old = std::move(temp);
     }
 
     auto end_jacobi = std::chrono::high_resolution_clock::now();
@@ -506,23 +508,3 @@ TEST(CGTest, LambdaVariationTest) {
 }
 
 // Main function for Google Test
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-
-    // Initialize MPI if needed
-    int MPIinitialized;
-    MPI_Initialized(&MPIinitialized);
-
-    if (!MPIinitialized) {
-        MPI_Init(&argc, &argv);
-    }
-
-    int result = RUN_ALL_TESTS();
-
-    // Finalize MPI if we initialized it
-    if (!MPIinitialized) {
-        MPI_Finalize();
-    }
-
-    return result;
-}

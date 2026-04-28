@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <numeric>
 
 /**
  * @file benchmark_mpi_communication.cpp

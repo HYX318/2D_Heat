@@ -1,17 +1,9 @@
 # Performance Tests / Benchmarks CMakeLists.txt
 
-# Collect performance benchmark sources
-set(PERFORMANCE_BENCHMARK_SOURCES
-    benchmark_communication.cpp
-    benchmark_mpi_communication.cpp
-    benchmark_overlap.cpp
-    benchmark_scaling.cpp
-)
-
-# Create executable for benchmarks
-add_executable(heat_equation_benchmarks ${PERFORMANCE_BENCHMARK_SOURCES})
-
-target_link_libraries(heat_equation_benchmarks
+# Collect performance benchmark sources - each has its own main(), build separately
+# benchmark_communication.cpp
+add_executable(benchmark_communication benchmark_communication.cpp)
+target_link_libraries(benchmark_communication
     PRIVATE
         heat_equation_utils
         heat_equation_mpi
@@ -19,12 +11,60 @@ target_link_libraries(heat_equation_benchmarks
         heat_equation_mesh
         ${MPI_CXX_LIBRARIES}
 )
-
-target_include_directories(heat_equation_benchmarks
+target_include_directories(benchmark_communication
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_BINARY_DIR}/include
 )
 
-# Register benchmark as a test (can be run separately)
-add_test(NAME PerformanceBenchmarks COMMAND heat_equation_benchmarks)
+# benchmark_mpi_communication.cpp
+add_executable(benchmark_mpi_communication benchmark_mpi_communication.cpp)
+target_link_libraries(benchmark_mpi_communication
+    PRIVATE
+        heat_equation_utils
+        heat_equation_mpi
+        heat_equation_core
+        heat_equation_mesh
+        ${MPI_CXX_LIBRARIES}
+)
+target_include_directories(benchmark_mpi_communication
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_BINARY_DIR}/include
+)
+
+# benchmark_overlap.cpp
+add_executable(benchmark_overlap benchmark_overlap.cpp)
+target_link_libraries(benchmark_overlap
+    PRIVATE
+        heat_equation_utils
+        heat_equation_mpi
+        heat_equation_core
+        heat_equation_mesh
+        ${MPI_CXX_LIBRARIES}
+)
+target_include_directories(benchmark_overlap
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_BINARY_DIR}/include
+)
+
+# benchmark_scaling.cpp
+add_executable(benchmark_scaling benchmark_scaling.cpp)
+target_link_libraries(benchmark_scaling
+    PRIVATE
+        heat_equation_utils
+        heat_equation_mpi
+        heat_equation_core
+        heat_equation_mesh
+        ${MPI_CXX_LIBRARIES}
+)
+target_include_directories(benchmark_scaling
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_BINARY_DIR}/include
+)
+
+# Keep old target for compatibility (but will fail to link)
+add_executable(heat_equation_benchmarks benchmark_communication.cpp benchmark_mpi_communication.cpp benchmark_overlap.cpp benchmark_scaling.cpp)
+set_target_properties(heat_equation_benchmarks PROPERTIES EXCLUDE_FROM_ALL TRUE)

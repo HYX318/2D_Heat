@@ -325,7 +325,7 @@ void SORSolver::sor_iteration_parallel(const utils::Array2D& rhs,
     }
 
     // Exchange ghost cells before iteration
-    ghost_exchange_->exchange(const_cast<utils::Array2D&>(solution));
+    ghost_exchange_->exchange(solution);
 
     size_t nx = solution.cols();
     size_t ny = solution.rows();
@@ -344,14 +344,14 @@ void SORSolver::sor_iteration_parallel(const utils::Array2D& rhs,
                 double x_old = solution(i, j);
                 double sum = solution(i+1, j) + solution(i-1, j) +
                              solution(i, j+1) + solution(i, j-1);
-                double x_new = (1.0 - omega_) * x_old + 
-                               omega_ * coeff * (rhs(i-1, j-1) + lambda * sum);
+                double x_new = (1.0 - omega_) * x_old +
+                               omega_ * coeff * (rhs(i, j) + lambda * sum);
                 solution(i, j) = x_new;
             }
         }
 
         // Exchange ghost cells again
-        ghost_exchange_->exchange(const_cast<utils::Array2D&>(solution));
+        ghost_exchange_->exchange(solution);
 
         // Update black points
         for (size_t i = 1; i <= ny; ++i) {
@@ -361,8 +361,8 @@ void SORSolver::sor_iteration_parallel(const utils::Array2D& rhs,
                 double x_old = solution(i, j);
                 double sum = solution(i+1, j) + solution(i-1, j) +
                              solution(i, j+1) + solution(i, j-1);
-                double x_new = (1.0 - omega_) * x_old + 
-                               omega_ * coeff * (rhs(i-1, j-1) + lambda * sum);
+                double x_new = (1.0 - omega_) * x_old +
+                               omega_ * coeff * (rhs(i, j) + lambda * sum);
                 solution(i, j) = x_new;
             }
         }
@@ -373,8 +373,8 @@ void SORSolver::sor_iteration_parallel(const utils::Array2D& rhs,
                 double x_old = solution(i, j);
                 double sum = solution(i+1, j) + solution(i-1, j) +
                              solution(i, j+1) + solution(i, j-1);
-                double x_new = (1.0 - omega_) * x_old + 
-                               omega_ * coeff * (rhs(i-1, j-1) + lambda * sum);
+                double x_new = (1.0 - omega_) * x_old +
+                               omega_ * coeff * (rhs(i, j) + lambda * sum);
                 solution(i, j) = x_new;
             }
         }

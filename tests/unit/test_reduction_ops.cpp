@@ -9,6 +9,7 @@
 #include <vector>
 #include <cmath>
 #include <numeric>
+#include "../test_common.hpp"
 
 using namespace test_utils;
 
@@ -531,19 +532,3 @@ TEST_F(ReductionOpsTest, MPIContextConstructor) {
 // Main function for MPI-enabled tests
 // ============================================================================
 
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-
-    // Initialize MPI if not already initialized
-    if (!is_mpi_initialized()) {
-        MPI_Init(&argc, &argv);
-    }
-
-    int result = RUN_ALL_TESTS();
-
-    // Finalize only if we initialized it
-    // In practice, you might want to keep MPI alive for other tests
-    // MPI_Finalize();
-
-    return result;
-}
