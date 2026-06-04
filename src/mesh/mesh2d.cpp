@@ -14,7 +14,7 @@ Mesh2D::Mesh2D(size_t nx, size_t ny, double lx, double ly)
       lx_(lx), ly_(ly),
       hx_(0.0), hy_(0.0),
       has_ghost_cells_(false),
-      data_(nx, ny),
+      data_(ny, nx),
       topology_(nullptr),
       ghost_exchange_(nullptr),
       offset_x_(0), offset_y_(0) {
@@ -178,6 +178,9 @@ const double& Mesh2D::at(size_t i, size_t j) const {
 size_t Mesh2D::global_to_local_x(size_t global_i) const {
     if (!topology_) {
         // No MPI - global = local
+        if (global_i >= nx_) {
+            throw std::out_of_range("Global x-index out of bounds");
+        }
         return global_i;
     }
 
@@ -197,6 +200,9 @@ size_t Mesh2D::global_to_local_x(size_t global_i) const {
 size_t Mesh2D::global_to_local_y(size_t global_j) const {
     if (!topology_) {
         // No MPI - global = local
+        if (global_j >= ny_) {
+            throw std::out_of_range("Global y-index out of bounds");
+        }
         return global_j;
     }
 
@@ -355,15 +361,31 @@ void Mesh2D::compute_laplacian(utils::Array2D& result) const {
 
     for (size_t i = 0; i < ny_; ++i) {
         for (size_t j = 0; j < nx_; ++j) {
-            // Convert to array indices (accounting for ghost cells)
-            size_t ai = offset_y_ + i;
-            size_t aj = offset_x_ + j;
+            auto value = [this](size_t row, size_t col) noexcept -> double {
+                return data_.unchecked(offset_y_ + row, offset_x_ + col);
+            };
 
-            // Central difference in x
-            double d2x = (data_(ai, aj + 1) - 2.0 * data_(ai, aj) + data_(ai, aj - 1)) * inv_hx2;
+            double d2x = 0.0;
+            if (nx_ >= 3) {
+                if (j == 0) {
+                    d2x = (value(i, 0) - 2.0 * value(i, 1) + value(i, 2)) * inv_hx2;
+                } else if (j == nx_ - 1) {
+                    d2x = (value(i, nx_ - 3) - 2.0 * value(i, nx_ - 2) + value(i, nx_ - 1)) * inv_hx2;
+                } else {
+                    d2x = (value(i, j + 1) - 2.0 * value(i, j) + value(i, j - 1)) * inv_hx2;
+                }
+            }
 
-            // Central difference in y
-            double d2y = (data_(ai + 1, aj) - 2.0 * data_(ai, aj) + data_(ai - 1, aj)) * inv_hy2;
+            double d2y = 0.0;
+            if (ny_ >= 3) {
+                if (i == 0) {
+                    d2y = (value(0, j) - 2.0 * value(1, j) + value(2, j)) * inv_hy2;
+                } else if (i == ny_ - 1) {
+                    d2y = (value(ny_ - 3, j) - 2.0 * value(ny_ - 2, j) + value(ny_ - 1, j)) * inv_hy2;
+                } else {
+                    d2y = (value(i + 1, j) - 2.0 * value(i, j) + value(i - 1, j)) * inv_hy2;
+                }
+            }
 
             result(i, j) = d2x + d2y;
         }
@@ -373,8 +395,9 @@ void Mesh2D::compute_laplacian(utils::Array2D& result) const {
 // Fill all interior points with specified value
 void Mesh2D::fill(double value) {
     for (size_t i = 0; i < ny_; ++i) {
+        double* row = data_.row_data(offset_y_ + i) + offset_x_;
         for (size_t j = 0; j < nx_; ++j) {
-            (*this)(i, j) = value;
+            row[j] = value;
         }
     }
 }
@@ -386,8 +409,10 @@ void Mesh2D::copy_from(const Mesh2D& other) {
     }
 
     for (size_t i = 0; i < ny_; ++i) {
+        double* row = data_.row_data(offset_y_ + i) + offset_x_;
+        const double* other_row = other.data_.row_data(other.offset_y_ + i) + other.offset_x_;
         for (size_t j = 0; j < nx_; ++j) {
-            (*this)(i, j) = other(i, j);
+            row[j] = other_row[j];
         }
     }
 }
@@ -395,8 +420,9 @@ void Mesh2D::copy_from(const Mesh2D& other) {
 // Scale all interior points by factor
 void Mesh2D::scale(double factor) {
     for (size_t i = 0; i < ny_; ++i) {
+        double* row = data_.row_data(offset_y_ + i) + offset_x_;
         for (size_t j = 0; j < nx_; ++j) {
-            (*this)(i, j) *= factor;
+            row[j] *= factor;
         }
     }
 }
@@ -408,8 +434,10 @@ void Mesh2D::add(const Mesh2D& other) {
     }
 
     for (size_t i = 0; i < ny_; ++i) {
+        double* row = data_.row_data(offset_y_ + i) + offset_x_;
+        const double* other_row = other.data_.row_data(other.offset_y_ + i) + other.offset_x_;
         for (size_t j = 0; j < nx_; ++j) {
-            (*this)(i, j) += other(i, j);
+            row[j] += other_row[j];
         }
     }
 }
@@ -421,8 +449,10 @@ void Mesh2D::subtract(const Mesh2D& other) {
     }
 
     for (size_t i = 0; i < ny_; ++i) {
+        double* row = data_.row_data(offset_y_ + i) + offset_x_;
+        const double* other_row = other.data_.row_data(other.offset_y_ + i) + other.offset_x_;
         for (size_t j = 0; j < nx_; ++j) {
-            (*this)(i, j) -= other(i, j);
+            row[j] -= other_row[j];
         }
     }
 }
@@ -431,9 +461,9 @@ void Mesh2D::subtract(const Mesh2D& other) {
 double Mesh2D::l2_norm() const {
     double sum = 0.0;
     for (size_t i = 0; i < ny_; ++i) {
-        for (size_t j = 0; j < nx_;
-             ++j) {
-            double val = (*this)(i, j);
+        const double* row = data_.row_data(offset_y_ + i) + offset_x_;
+        for (size_t j = 0; j < nx_; ++j) {
+            double val = row[j];
             sum += val * val;
         }
     }
@@ -444,8 +474,9 @@ double Mesh2D::l2_norm() const {
 double Mesh2D::linfty_norm() const {
     double max_abs = 0.0;
     for (size_t i = 0; i < ny_; ++i) {
+        const double* row = data_.row_data(offset_y_ + i) + offset_x_;
         for (size_t j = 0; j < nx_; ++j) {
-            max_abs = std::max(max_abs, std::abs((*this)(i, j)));
+            max_abs = std::max(max_abs, std::abs(row[j]));
         }
     }
     return max_abs;
@@ -453,10 +484,11 @@ double Mesh2D::linfty_norm() const {
 
 // Get maximum value
 double Mesh2D::max() const {
-    double max_val = (*this)(0, 0);
+    double max_val = data_.unchecked(offset_y_, offset_x_);
     for (size_t i = 0; i < ny_; ++i) {
+        const double* row = data_.row_data(offset_y_ + i) + offset_x_;
         for (size_t j = 0; j < nx_; ++j) {
-            max_val = std::max(max_val, (*this)(i, j));
+            max_val = std::max(max_val, row[j]);
         }
     }
     return max_val;
@@ -464,10 +496,11 @@ double Mesh2D::max() const {
 
 // Get minimum value
 double Mesh2D::min() const {
-    double min_val = (*this)(0, 0);
+    double min_val = data_.unchecked(offset_y_, offset_x_);
     for (size_t i = 0; i < ny_; ++i) {
+        const double* row = data_.row_data(offset_y_ + i) + offset_x_;
         for (size_t j = 0; j < nx_; ++j) {
-            min_val = std::min(min_val, (*this)(i, j));
+            min_val = std::min(min_val, row[j]);
         }
     }
     return min_val;

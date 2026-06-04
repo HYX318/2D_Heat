@@ -23,24 +23,22 @@ using namespace utils;
 class JacobiSolverTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Initialize MPI if not already initialized
-        int flag;
-        MPI_Initialized(&flag);
-        if (!flag) {
-            MPI_Init(nullptr, nullptr);
-            mpi_initialized_ = true;
-        }
+        int initialized = 0;
+        int finalized = 0;
+        MPI_Initialized(&initialized);
+        MPI_Finalized(&finalized);
 
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
-        MPI_Comm_size(MPI_COMM_WORLD, &size_);
-    }
-
-    void TearDown() override {
-        // Only finalize MPI if we initialized it
-        if (mpi_initialized_) {
-            MPI_Finalize();
+        mpi_available_ = initialized && !finalized;
+        if (mpi_available_) {
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
+            MPI_Comm_size(MPI_COMM_WORLD, &size_);
+        } else {
+            rank_ = 0;
+            size_ = 1;
         }
     }
+
+    void TearDown() override {}
 
     /**
      * Create a simple test problem with known solution
@@ -63,7 +61,12 @@ protected:
                 double y = static_cast<double>(j) / (Ny + 1);
 
                 exact(j, i) = std::sin(pi * x) * std::sin(pi * y);
+                rhs(j, i) = 0.0;
+            }
+        }
 
+        for (int j = 0; j < Ny + 2; ++j) {
+            for (int i = 0; i < Nx + 2; ++i) {
                 // For interior points, compute RHS
                 // (I - λ*L)u = b
                 if (i >= 1 && i <= Nx && j >= 1 && j <= Ny) {
@@ -96,7 +99,7 @@ protected:
 
     int rank_ = 0;
     int size_ = 1;
-    bool mpi_initialized_ = false;
+    bool mpi_available_ = false;
 };
 
 /**
@@ -214,6 +217,10 @@ TEST_F(JacobiSolverTest, ResetTest) {
  * Test: Parallel solver initialization
  */
 TEST_F(JacobiSolverTest, ParallelSolverInitializationTest) {
+    if (!mpi_available_) {
+        GTEST_SKIP() << "MPI not initialized. Run with an MPI-aware test main.";
+    }
+
     // Create Cartesian topology
     CartesianTopology topology(MPI_COMM_WORLD);
 

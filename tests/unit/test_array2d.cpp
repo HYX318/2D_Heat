@@ -288,10 +288,11 @@ TEST(Array2DTest, ArithmeticOperations) {
     // Test operator+=
     Array2D c = a;
     c += b;
-    double counter_sum = 11.0;
+    double counter_a_sum = 1.0;
+    double counter_b_sum = 10.0;
     for (size_t i = 0; i < c.rows(); ++i) {
         for (size_t j = 0; j < c.cols(); ++j) {
-            EXPECT_DOUBLE_EQ(c(i, j), counter_sum++);
+            EXPECT_DOUBLE_EQ(c(i, j), counter_a_sum++ + counter_b_sum++);
         }
     }
 
@@ -302,10 +303,11 @@ TEST(Array2DTest, ArithmeticOperations) {
     // Test operator-=
     Array2D d = b;
     d -= a;
-    double counter_diff = 9.0;
+    double counter_a_diff = 1.0;
+    double counter_b_diff = 10.0;
     for (size_t i = 0; i < d.rows(); ++i) {
         for (size_t j = 0; j < d.cols(); ++j) {
-            EXPECT_DOUBLE_EQ(d(i, j), counter_diff++);
+            EXPECT_DOUBLE_EQ(d(i, j), counter_b_diff++ - counter_a_diff++);
         }
     }
 

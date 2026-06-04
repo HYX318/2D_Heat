@@ -136,6 +136,36 @@ public:
     }
 
     /**
+     * @brief Fast element access without bounds checking.
+     *
+     * Intended for internal numerical kernels that already validate loop bounds.
+     */
+    double& unchecked(size_t i, size_t j) noexcept {
+        return data_[i * cols_ + j];
+    }
+
+    /**
+     * @brief Fast const element access without bounds checking.
+     */
+    const double& unchecked(size_t i, size_t j) const noexcept {
+        return data_[i * cols_ + j];
+    }
+
+    /**
+     * @brief Pointer to the first element of a row.
+     */
+    double* row_data(size_t i) noexcept {
+        return data_.get() + i * cols_;
+    }
+
+    /**
+     * @brief Const pointer to the first element of a row.
+     */
+    const double* row_data(size_t i) const noexcept {
+        return data_.get() + i * cols_;
+    }
+
+    /**
      * @brief Get number of rows
      * @return Number of rows
      */

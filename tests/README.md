@@ -9,10 +9,14 @@ tests/
 ├── README.md                    # This file
 ├── test_common.hpp              # Common test utilities and macros
 ├── CMakeLists.txt               # Test build configuration
-└── unit/                       # Unit tests
+└── unit/                        # Unit tests
     ├── CMakeLists.txt           # Unit test configuration
-    ├── test_array2d.cpp         # Array2D class tests (14 tests)
-    └── test_mpi_context.cpp     # MPIContext class tests (8 tests)
+    ├── test_array2d.cpp
+    ├── test_mesh2d.cpp
+    ├── test_jacobi_solver.cpp
+    ├── test_sor_solver.cpp
+    ├── test_cg_solver.cpp
+    └── test_mpi_context.cpp
 ```
 
 ## Prerequisites
@@ -28,80 +32,31 @@ tests/
 
 ```bash
 # From project root
-mkdir -p build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
-cmake --build . --target build_tests
-```
-
-### Using Makefile (Legacy)
-
-```bash
-# From project root
-cd scripts
-./build_mpi_context_test.sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+cmake --build build
 ```
 
 ## Running Tests
 
-### Automated Test Runner (Recommended)
-
-Use the comprehensive test runner script:
-
-```bash
-# Build and run all tests with default 4 MPI processes
-./scripts/run_all_tests.sh
-
-# Run with custom number of MPI processes
-./scripts/run_all_tests.sh -n 8
-
-# Only build tests, don't run them
-./scripts/run_all_tests.sh -b
-
-# Only run tests (skip build)
-./scripts/run_all_tests.sh -r
-
-# Clean before building
-./scripts/run_all_tests.sh -c
-
-# Enable verbose output
-./scripts/run_all_tests.sh -v
-```
-
-### Manual Test Execution
-
-#### Non-MPI Tests (Array2D)
-
-```bash
-# From build directory
-cd build
-./bin/test_array2d
-```
-
-#### MPI Tests (MPIContext)
-
-```bash
-# From build directory
-cd build
-export TMPDIR=/tmp  # Required on macOS
-mpirun -n 4 ./bin/test_mpi_context
-```
-
 ### Using CTest
 
 ```bash
-# From build directory
-cd build
+ctest --test-dir build --output-on-failure
+```
 
-# Run all tests
-ctest --verbose
+CTest runs the combined unit test binary without initializing MPI. MPI-specific tests are skipped in that mode.
 
-# Run specific test suite
-ctest -R "Array2D" --verbose
-ctest -R "MPI" --verbose
+### MPI Test Execution
 
-# Run tests with output on failure
-ctest --output-on-failure
+```bash
+export TMPDIR=/tmp  # Required on macOS
+mpirun -n 4 ./build/bin/heat_equation_unit_tests
+```
+
+### Direct Test Binary
+
+```bash
+./build/bin/heat_equation_unit_tests
 ```
 
 ## Test Coverage

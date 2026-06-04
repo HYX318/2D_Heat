@@ -72,7 +72,7 @@ TEST(ConstructionTest, CopyConstructorCreatesDeepCopy) {
     Mesh2D original(5, 4, 2.0, 1.0);
     original(0, 0) = 1.0;
     original(2, 2) = 2.0;
-    original(4, 3) = 3.0;
+    original(3, 4) = 3.0;
 
     Mesh2D copy(original);
 
@@ -82,7 +82,7 @@ TEST(ConstructionTest, CopyConstructorCreatesDeepCopy) {
     EXPECT_EQ(copy.ly(), original.ly());
     EXPECT_EQ(copy(0, 0), 1.0);
     EXPECT_EQ(copy(2, 2), 2.0);
-    EXPECT_EQ(copy(4, 3), 3.0);
+    EXPECT_EQ(copy(3, 4), 3.0);
 
     // Verify deep copy
     original(0, 0) = 10.0;
@@ -155,11 +155,11 @@ TEST(AccessorTest, ElementAccessReturnsCorrectValues) {
 
     mesh(0, 0) = 1.0;
     mesh(2, 2) = 2.0;
-    mesh(4, 3) = 3.0;
+    mesh(3, 4) = 3.0;
 
     EXPECT_EQ(mesh(0, 0), 1.0);
     EXPECT_EQ(mesh(2, 2), 2.0);
-    EXPECT_EQ(mesh(4, 3), 3.0);
+    EXPECT_EQ(mesh(3, 4), 3.0);
 }
 
 TEST(AccessorTest, ConstElementAccessWorks) {
@@ -641,7 +641,7 @@ TEST(NormsTest, LinftyNormOfMixedValues) {
 
     mesh(0, 0) = 1.0;
     mesh(1, 1) = -5.0;
-    mesh(2, 1) = 3.0;
+    mesh(1, 2) = 3.0;
 
     EXPECT_DOUBLE_EQ(mesh.linfty_norm(), 5.0);
 }
@@ -651,7 +651,7 @@ TEST(NormsTest, MaxValue) {
 
     mesh(0, 0) = 1.0;
     mesh(1, 1) = -5.0;
-    mesh(2, 1) = 3.0;
+    mesh(1, 2) = 3.0;
 
     EXPECT_DOUBLE_EQ(mesh.max(), 3.0);
 }
@@ -661,7 +661,7 @@ TEST(NormsTest, MinValue) {
 
     mesh(0, 0) = 1.0;
     mesh(1, 1) = -5.0;
-    mesh(2, 1) = 3.0;
+    mesh(1, 2) = 3.0;
 
     EXPECT_DOUBLE_EQ(mesh.min(), -5.0);
 }
@@ -882,4 +882,3 @@ TEST(MPITopologyIntegration, GhostExchangeUsesTopology) {
 // =============================================================================
 // Main function for MPI-enabled tests
 // =============================================================================
-

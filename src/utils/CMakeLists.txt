@@ -12,6 +12,11 @@ file(GLOB UTILS_HEADERS
 
 add_library(heat_equation_utils ${UTILS_SOURCES} ${UTILS_HEADERS})
 
+target_link_libraries(heat_equation_utils
+    PUBLIC
+        heat_equation_options
+)
+
 target_include_directories(heat_equation_utils
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}

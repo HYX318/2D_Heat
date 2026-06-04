@@ -29,23 +29,27 @@ A high-performance parallel computing application for solving the 2D heat diffus
 ## Building
 
 ```bash
-# Configure and build
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(sysctl -n hw.ncpu)
+# Configure and build from the repository root
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 
-# Run tests (if enabled)
-ctest
+# Configure with tests enabled
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
 ## Running Examples
 
 ```bash
-# Serial example with 4 MPI processes
-mpirun -n 4 ./bin/heat_equation
+# Parallel run with 4 MPI processes
+mpirun -n 4 ./build/bin/heat_equation
 
 # With custom parameters
-mpirun -n 4 ./bin/heat_equation -nx 200 -ny 200 -nt 100 -stabp 0.25
+mpirun -n 4 ./build/bin/heat_equation -nx 200 -ny 200 -nt 100 -stabp 0.25
+
+# Serial run
+./build/bin/heat_equation --no-mpi
 
 # Show help
 ./build/bin/heat_equation -h
@@ -58,8 +62,7 @@ mpirun -n 4 ./bin/heat_equation -nx 200 -ny 200 -nt 100 -stabp 0.25
 ## System Installation
 
 ```bash
-cd build
-sudo make install
+cmake --install build
 ```
 
 This installs:
@@ -70,9 +73,8 @@ This installs:
 ## Custom Installation
 
 ```bash
-cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=/opt/2D_Heat
-sudo make install
+cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/opt/2D_Heat
+cmake --install build
 ```
 
 ---
@@ -83,7 +85,7 @@ sudo make install
 
 ```bash
 # Basic usage
-./bin/heat_equation [options] [param_file]
+./build/bin/heat_equation [options] [param_file]
 
 # Options:
 -h, --help              Show help message
@@ -150,18 +152,18 @@ int main(int argc, char** argv) {
     CartesianTopology topology(MPI_COMM_WORLD);
 
     // Create mesh with ghost cells
-    Meshes2D mesh(200, 200, 1.0, 1.0, topology);
+    Mesh2D mesh(200, 200, 1.0, 1.0, topology);
 
     // Apply boundary conditions
     mesh.apply_dirichlet_bc(0.0);
 
     // Create solver (Jacobi with MPI support)
-    JacobiSolver<true> solver(&ghost_exchange, MPI_COMM_WORLD);
+    JacobiSolver<true> solver(mesh.ghost_exchange(), MPI_COMM_WORLD);
     SolverParams params(1e-6, 10000);
 
     // Solve
     utils::Array2D rhs = mesh.data();
-    utils::Array2D solution(100, 100);
+    utils::Array2D solution(mesh.data().rows(), mesh.data().cols());
     solver.solve(rhs, solution, params);
 
     // Print results on root
@@ -248,33 +250,33 @@ int main(int argc, char** argv) {
 
 ```bash
 # Build type
-cmake .. -DCMAKE_BUILD_TYPE=Release    # Optimized build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release    # Optimized build
 
-cmake .. -DCMAKE_BUILD_TYPE=Debug      # Debug build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug      # Debug build
 
 # MPI support
-cmake .. -DENABLE_MPI=ON              # Enable MPI (default)
-cmake .. -DENABLE_MPI=OFF             # Disable MPI
+cmake -S . -B build -DENABLE_MPI=ON              # Enable MPI (default)
+cmake -S . -B build -DENABLE_MPI=OFF             # Disable MPI
 
 # Build targets
-cmake .. -DBUILD_TESTS=ON              # Build tests
-cmake .. -DBUILD_EXAMPLES=ON          # Build examples (default)
+cmake -S . -B build -DBUILD_TESTS=ON              # Build tests
+cmake -S . -B build -DBUILD_EXAMPLES=ON          # Build examples (default)
 ```
 
 ## Make Targets
 
 ```bash
 # Build all
-make -j$(nproc)
+cmake --build build
 
 # Build specific target
-make heat_equation
+cmake --build build --target heat_equation
 
 # Install
-sudo make install
+cmake --install build
 
 # Clean
-make clean
+cmake --build build --target clean
 ```
 
 ---
@@ -284,29 +286,29 @@ make clean
 ## Run All Tests
 
 ```bash
-cd build
-ctest
+cmake -S . -B build -DBUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
 ## Run Tests Verbosely
 
 ```bash
-ctest --verbose
+ctest --test-dir build --verbose
 ```
 
 ## Run Specific Test
 
 ```bash
-ctest -R Array2D
-ctest -R Jacobi
-ctest -R MPI
+ctest --test-dir build -R UnitTests --output-on-failure
 ```
 
 ## Run with MPI
 
+CTest runs the combined unit test binary without initializing MPI, so MPI-specific tests are skipped in that mode. Run the test executable under `mpirun` to exercise MPI paths:
+
 ```bash
-mpirun -n 4 ./bin/test_ghost_cell_exchange
-mpirun -n 8 ./bin/test_conjugate_gradient_solver
+mpirun -n 4 ./build/bin/heat_equation_unit_tests
 ```
 
 ---
@@ -372,7 +374,7 @@ mpirun -n 8 ./bin/test_conjugate_gradient_solver
 
 ```bash
 # Specify MPI compiler explicitly
-cmake .. -DCMAKE_CXX_COMPILER=mpicxx
+cmake -S . -B build -DCMAKE_CXX_COMPILER=mpicxx
 ```
 
 ## Build Errors
@@ -380,19 +382,18 @@ cmake .. -DCMAKE_CXX_COMPILER=mpicxx
 ```bash
 # Clean and rebuild
 rm -rf build
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-make -j$(nproc)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+cmake --build build
 ```
 
 ## Test Failures
 
 ```bash
 # Run tests with verbose output
-ctest --verbose
+ctest --test-dir build --verbose
 
 # Check specific test
-ctest -R TestName --output-on-failure
+ctest --test-dir build -R UnitTests --output-on-failure
 ```
 
 ## macOS MPI Issues

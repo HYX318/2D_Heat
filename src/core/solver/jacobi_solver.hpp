@@ -173,7 +173,7 @@ public:
             stats_.iterations++;
 
             // Perform one Jacobi iteration
-            residual = jacobi_iteration(solution, x0, rhs, coeff, Nx, Ny);
+            jacobi_iteration(solution, x0, rhs, coeff, Nx, Ny);
 
             // Parallel: exchange ghost cells
             if constexpr (Parallel) {
@@ -182,6 +182,8 @@ public:
 
             // Copy new solution to old for next iteration
             x0.copy_from(solution);
+
+            residual = compute_operator_residual(solution, rhs, params.lambda, Nx, Ny);
 
             // Parallel: compute global residual
             if constexpr (Parallel) {
@@ -284,6 +286,11 @@ private:
         // Loop over interior points (1..Ny for rows, 1..Nx for columns)
         // Note: Ghost cells are at indices 0 and Ny+1 / Nx+1
         for (int j = 1; j <= Ny; ++j) {
+            double* x_row = x.row_data(static_cast<size_t>(j));
+            const double* x0_row = x0.row_data(static_cast<size_t>(j));
+            const double* x0_prev = x0.row_data(static_cast<size_t>(j - 1));
+            const double* x0_next = x0.row_data(static_cast<size_t>(j + 1));
+            const double* b_row = b.row_data(static_cast<size_t>(j));
             for (int i = 1; i <= Nx; ++i) {
                 // Jacobi update formula from legacy code:
                 // x[j][i] = Coeff * ( lambda * (x0[j+1][i] + x0[j][i+1] +
@@ -295,15 +302,15 @@ private:
 
                 double new_val = coeff * (
                     lambda * (
-                        x0(j+1, i) + x0(j, i+1) +
-                        x0(j-1, i) + x0(j, i-1)
-                    ) + b(j, i)
+                        x0_next[i] + x0_row[i + 1] +
+                        x0_prev[i] + x0_row[i - 1]
+                    ) + b_row[i]
                 );
 
-                x(j, i) = new_val;
+                x_row[i] = new_val;
 
                 // Compute residual (max absolute change)
-                double residual = std::abs(x(j, i) - x0(j, i));
+                double residual = std::abs(x_row[i] - x0_row[i]);
                 max_residual = std::max(max_residual, residual);
             }
         }
@@ -328,13 +335,39 @@ private:
         double max_diff = 0.0;
 
         for (int j = 1; j <= Ny; ++j) {
+            const double* x1_row = x1.row_data(static_cast<size_t>(j));
+            const double* x2_row = x2.row_data(static_cast<size_t>(j));
             for (int i = 1; i <= Nx; ++i) {
-                double diff = std::abs(x1(j, i) - x2(j, i));
+                double diff = std::abs(x1_row[i] - x2_row[i]);
                 max_diff = std::max(max_diff, diff);
             }
         }
 
         return max_diff;
+    }
+
+    double compute_operator_residual(const utils::Array2D& x,
+                                     const utils::Array2D& b,
+                                     double lambda,
+                                     int Nx,
+                                     int Ny) {
+        double max_residual = 0.0;
+
+        for (int j = 1; j <= Ny; ++j) {
+            const double* x_row = x.row_data(static_cast<size_t>(j));
+            const double* x_prev = x.row_data(static_cast<size_t>(j - 1));
+            const double* x_next = x.row_data(static_cast<size_t>(j + 1));
+            const double* b_row = b.row_data(static_cast<size_t>(j));
+            for (int i = 1; i <= Nx; ++i) {
+                double lhs = x_row[i] - lambda * (
+                    x_next[i] - 2.0 * x_row[i] + x_prev[i] +
+                    x_row[i + 1] - 2.0 * x_row[i] + x_row[i - 1]
+                );
+                max_residual = std::max(max_residual, std::abs(lhs - b_row[i]));
+            }
+        }
+
+        return max_residual;
     }
 };
 

@@ -1,20 +1,24 @@
 cmake_minimum_required(VERSION 3.16)
 project(HeatEquation VERSION 1.0.0 LANGUAGES CXX)
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+add_library(heat_equation_options INTERFACE)
+target_compile_features(heat_equation_options INTERFACE cxx_std_17)
+set_target_properties(heat_equation_options PROPERTIES CXX_EXTENSIONS OFF)
 
 # Output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# Compiler flags
+# Compiler options
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
-    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
+    target_compile_options(heat_equation_options INTERFACE
+        -Wall
+        -Wextra
+        -Wpedantic
+        $<$<CONFIG:Release>:-O3>
+        $<$<CONFIG:Release>:-march=native>
+    )
 endif()
 
 # Build options

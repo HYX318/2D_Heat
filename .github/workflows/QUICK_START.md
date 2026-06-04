@@ -120,14 +120,6 @@ act push -W .github/workflows/ci.yml
 act push -j build-and-test -W .github/workflows/ci.yml
 ```
 
-## 验证配置
-
-运行验证脚本检查配置：
-
-```bash
-bash scripts/validate-ci.sh
-```
-
 ## 关键特性
 
 ### ✅ 已配置的功能

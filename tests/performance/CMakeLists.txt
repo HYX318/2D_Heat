@@ -64,7 +64,3 @@ target_include_directories(benchmark_scaling
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_BINARY_DIR}/include
 )
-
-# Keep old target for compatibility (but will fail to link)
-add_executable(heat_equation_benchmarks benchmark_communication.cpp benchmark_mpi_communication.cpp benchmark_overlap.cpp benchmark_scaling.cpp)
-set_target_properties(heat_equation_benchmarks PROPERTIES EXCLUDE_FROM_ALL TRUE)

@@ -162,11 +162,16 @@ class SolverRunner:
         else:
             cmd = [self.executable_path]
 
-        # Add solver parameters
+        # Add solver parameters, except output_prefix which is normalized below.
         for config_key, cli_arg in self.PARAM_MAPPING.items():
+            if config_key == 'output_prefix':
+                continue
             if config_key in self.config:
                 value = self.config[config_key]
                 cmd.extend([cli_arg, str(value)])
+
+        # Always pass the same output prefix that collect_output_files() will scan.
+        cmd.extend([self.PARAM_MAPPING['output_prefix'], self.get_output_prefix()])
 
         return cmd
 
@@ -277,8 +282,11 @@ class SolverRunner:
             RuntimeError: If solver exits with non-zero code
             subprocess.TimeoutExpired: If process doesn't complete within timeout
         """
-        # Get initial file count
-        initial_files = set(self.collect_output_files())
+        # Track existing outputs so overwritten files from a rerun are still collected.
+        initial_files = {
+            path: os.path.getmtime(path)
+            for path in self.collect_output_files()
+        }
 
         # Run solver
         process = self.run()
@@ -290,13 +298,16 @@ class SolverRunner:
                 "Check stderr for details."
             )
 
-        # Collect new files
-        final_files = set(self.collect_output_files())
-        new_files = list(final_files - initial_files)
+        # Collect files created or updated by this run.
+        final_files = self.collect_output_files()
+        new_files = [
+            path for path in final_files
+            if path not in initial_files or os.path.getmtime(path) > initial_files[path]
+        ]
 
         if not new_files:
             print("Warning: No output files found.")
             return []
 
         print(f"Found {len(new_files)} output file(s)")
-        return new_files
+        return sorted(new_files)

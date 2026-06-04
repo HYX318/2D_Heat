@@ -34,13 +34,31 @@ ConjugateGradientSolver::ConjugateGradientSolver(bool use_preconditioner, double
 ConjugateGradientSolver::ConjugateGradientSolver(bool use_preconditioner, double lambda,
                                                     MPI_Comm comm,
                                                     const int neighbor_rank[4],
-                                                    int nx, int ny)
+                                                    int, int)
     : use_preconditioner_(use_preconditioner),
       lambda_(lambda),
       restart_threshold_(50),
       is_parallel_(true),
       comm_(comm),
+      rank_(0),
+      size_(1),
       initialized_(false) {
+    int mpi_initialized = 0;
+    MPI_Initialized(&mpi_initialized);
+    if (!mpi_initialized) {
+        throw std::invalid_argument("ConjugateGradientSolver: MPI must be initialized before using the parallel constructor");
+    }
+
+    int mpi_finalized = 0;
+    MPI_Finalized(&mpi_finalized);
+    if (mpi_finalized) {
+        throw std::invalid_argument("ConjugateGradientSolver: MPI has already been finalized");
+    }
+
+    if (comm_ == MPI_COMM_NULL) {
+        throw std::invalid_argument("ConjugateGradientSolver: MPI communicator must not be MPI_COMM_NULL");
+    }
+
     // Get MPI rank and size
     MPI_Comm_rank(comm_, &rank_);
     MPI_Comm_size(comm_, &size_);
@@ -112,12 +130,13 @@ void ConjugateGradientSolver::matrix_vector_multiply(const utils::Array2D& x,
     // y[i][j] = (1 + 4λ)x[i][j] - λ(x[i+1][j] + x[i-1][j] + x[i][j+1] + x[i][j-1])
     for (size_t j = j_start; j < j_end; ++j) {
         for (size_t i = i_start; i < i_end; ++i) {
-            double north = (j > 0) ? x(j - 1, i) : 0.0;
-            double south = (j < rows - 1) ? x(j + 1, i) : 0.0;
-            double west = (i > 0) ? x(j, i - 1) : 0.0;
-            double east = (i < cols - 1) ? x(j, i + 1) : 0.0;
+            double north = (j > 0) ? x.unchecked(j - 1, i) : 0.0;
+            double south = (j < rows - 1) ? x.unchecked(j + 1, i) : 0.0;
+            double west = (i > 0) ? x.unchecked(j, i - 1) : 0.0;
+            double east = (i < cols - 1) ? x.unchecked(j, i + 1) : 0.0;
 
-            y(j, i) = diag_coeff *x(j, i) - lambda_ * (north + south + west + east);
+            y.unchecked(j, i) = diag_coeff * x.unchecked(j, i) -
+                                lambda_ * (north + south + west + east);
         }
     }
 }
@@ -148,8 +167,10 @@ double ConjugateGradientSolver::local_dot_product(const utils::Array2D& x,
     size_t cols = x.cols();
 
     for (size_t j = 0; j < rows; ++j) {
+        const double* x_row = x.row_data(j);
+        const double* y_row = y.row_data(j);
         for (size_t i = 0; i < cols; ++i) {
-            result += x(j, i) * y(j, i);
+            result += x_row[i] * y_row[i];
         }
     }
 
@@ -169,8 +190,10 @@ void ConjugateGradientSolver::apply_preconditioner(const utils::Array2D& r,
     size_t cols = r.cols();
 
     for (size_t j = 0; j < rows; ++j) {
+        const double* r_row = r.row_data(j);
+        double* z_row = z.row_data(j);
         for (size_t i = 0; i < cols; ++i) {
-            z(j, i) = inv_diag * r(j, i);
+            z_row[i] = inv_diag * r_row[i];
         }
     }
 }
@@ -204,7 +227,7 @@ void ConjugateGradientSolver::exchange_ghost_cells(utils::Array2D& x) {
 
         // Pack for send (last column before ghost)
         for (size_t j = 0; j < rows; j++) {
-            send_buffer[j] = x(j, cols - 2);
+            send_buffer[j] = x.unchecked(j, cols - 2);
         }
 
         MPI_Sendrecv(send_buffer.data(), rows, MPI_DOUBLE, neighbor_rank_[2], 2,
@@ -213,7 +236,7 @@ void ConjugateGradientSolver::exchange_ghost_cells(utils::Array2D& x) {
 
         // Unpack to ghost column
         for (size_t j = 0; j < rows; j++) {
-            x(j, cols - 1) = recv_buffer[j];
+            x.unchecked(j, cols - 1) = recv_buffer[j];
         }
     }
 
@@ -224,7 +247,7 @@ void ConjugateGradientSolver::exchange_ghost_cells(utils::Array2D& x) {
 
         // Pack for send (first column after ghost)
         for (size_t j = 0; j < rows; j++) {
-            send_buffer[j] = x(j, 1);
+            send_buffer[j] = x.unchecked(j, 1);
         }
 
         MPI_Sendrecv(send_buffer.data(), rows, MPI_DOUBLE, neighbor_rank_[3], 3,
@@ -233,7 +256,7 @@ void ConjugateGradientSolver::exchange_ghost_cells(utils::Array2D& x) {
 
         // Unpack to ghost column
         for (size_t j = 0; j < rows; j++) {
-            x(j, 0) = recv_buffer[j];
+            x.unchecked(j, 0) = recv_buffer[j];
         }
     }
 }
@@ -375,15 +398,19 @@ void ConjugateGradientSolver::solve(const utils::Array2D& rhs,
 
         // Update solution: x = x + alpha * p
         for (size_t j = 0; j < rows; ++j) {
+            double* solution_row = solution.row_data(j);
+            const double* p_row = p_->row_data(j);
             for (size_t i = 0; i < cols; ++i) {
-                solution(j, i) += alpha * (*p_)(j, i);
+                solution_row[i] += alpha * p_row[i];
             }
         }
 
         // Compute new residual: r_new = r - alpha * Ap
         for (size_t j = 0; j < rows; ++j) {
+            double* r_row = r_->row_data(j);
+            const double* ap_row = Ap_->row_data(j);
             for (size_t i = 0; i < cols; ++i) {
-                (*r_)(j, i) -= alpha * (*Ap_)(j, i);
+                r_row[i] -= alpha * ap_row[i];
             }
         }
 
@@ -433,8 +460,11 @@ void ConjugateGradientSolver::solve(const utils::Array2D& rhs,
                 // Restart: recompute r = b - Ax with current x
                 matrix_vector_multiply(solution, *temp_);
                 for (size_t j = 0; j < rows; ++j) {
+                    double* r_row = r_->row_data(j);
+                    const double* rhs_row = rhs.row_data(j);
+                    const double* temp_row = temp_->row_data(j);
                     for (size_t i = 0; i < cols; ++i) {
-                        (*r_)(j, i) = rhs(j, i) - (*temp_)(j, i);
+                        r_row[i] = rhs_row[i] - temp_row[i];
                     }
                 }
                 r_norm = norm(*r_);
@@ -477,15 +507,19 @@ void ConjugateGradientSolver::solve(const utils::Array2D& rhs,
         if (use_preconditioner_) {
             // Preconditioned CG
             for (size_t j = 0; j < rows; ++j) {
+                double* p_row = p_->row_data(j);
+                const double* z_row = z_->row_data(j);
                 for (size_t i = 0; i < cols; ++i) {
-                    (*p_)(j, i) = (*z_)(j, i) + beta * (*p_)(j, i);
+                    p_row[i] = z_row[i] + beta * p_row[i];
                 }
             }
         } else {
             // Standard CG
             for (size_t j = 0; j < rows; ++j) {
+                double* p_row = p_->row_data(j);
+                const double* r_row = r_->row_data(j);
                 for (size_t i = 0; i < cols; ++i) {
-                    (*p_)(j, i) = (*r_)(j, i) + beta * (*p_)(j, i);
+                    p_row[i] = r_row[i] + beta * p_row[i];
                 }
             }
         }

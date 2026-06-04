@@ -243,6 +243,37 @@ inline bool approx_equal(double a, double b, double rel_tol = 1e-6) {
 
 } // namespace test_utils
 
+#define skip_if_no_mpi() \
+    do { \
+        if (!test_utils::is_mpi_initialized()) { \
+            GTEST_SKIP() << "MPI not initialized. Run with mpirun/mpiexec."; \
+        } \
+    } while(0)
+
+#define skip_if_mpi_procs_not(required_procs) \
+    do { \
+        skip_if_no_mpi(); \
+        int mpi_size = test_utils::get_mpi_size(); \
+        if (mpi_size != (required_procs)) { \
+            std::stringstream ss; \
+            ss << "This test requires exactly " << (required_procs) \
+               << " MPI processes, but running with " << mpi_size << " processes."; \
+            GTEST_SKIP() << ss.str(); \
+        } \
+    } while(0)
+
+#define skip_if_mpi_procs_less_than(min_procs) \
+    do { \
+        skip_if_no_mpi(); \
+        int mpi_size = test_utils::get_mpi_size(); \
+        if (mpi_size < (min_procs)) { \
+            std::stringstream ss; \
+            ss << "This test requires at least " << (min_procs) \
+               << " MPI processes, but running with " << mpi_size << " processes."; \
+            GTEST_SKIP() << ss.str(); \
+        } \
+    } while(0)
+
 /**
  * @brief Custom assertion macro for MPI initialization check
  */

@@ -57,7 +57,7 @@ public:
      * 1.0 < omega < 2.0: Over-relaxation (faster convergence)
      * omega >= 2.0: Invalid (will diverge)
      */
-    explicit SORSolver(double omega = 0.0);
+    explicit SORSolver(double omega = 1.0);
 
     /**
      * @brief Parallel constructor with MPI support

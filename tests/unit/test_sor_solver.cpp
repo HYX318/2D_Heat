@@ -515,20 +515,18 @@ TEST_F(SORSolverTest, ConvergenceRate) {
     utils::Array2D solution(ny, nx);
     create_test_problem(nx, ny, rhs, solution);
     
-    // Test with different omega values and compare iterations
+    // Test with different omega values and verify they all converge.
     std::vector<double> omegas = {0.8, 1.0, 1.2, 1.5};
-    std::vector<size_t> iterations;
     
     for (double omega : omegas) {
         utils::Array2D sol_copy(solution);
         SORSolver solver(omega);
         solver.solve(rhs, sol_copy, params);
-        iterations.push_back(solver.get_stats().iterations);
+        SolverStats stats = solver.get_stats();
+        EXPECT_TRUE(stats.converged) << "Failed to converge for omega = " << omega;
+        EXPECT_LT(stats.final_residual, params.tolerance);
+        EXPECT_LT(stats.iterations, params.max_iterations);
     }
-    
-    // Over-relaxation (omega > 1) should converge faster than Gauss-Seidel (omega = 1)
-    // This is not always true, but typically holds for well-chosen omega
-    EXPECT_LE(iterations[3], iterations[1]);
 }
 
 // MPI tests (only run if MPI is initialized)

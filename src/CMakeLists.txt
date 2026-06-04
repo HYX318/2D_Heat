@@ -23,6 +23,7 @@ add_subdirectory(mesh)
 # Build main executable
 add_executable(heat_equation ${SOURCES})
 target_link_libraries(heat_equation
+    heat_equation_options
     heat_equation_utils
     heat_equation_mesh
     heat_equation_mpi

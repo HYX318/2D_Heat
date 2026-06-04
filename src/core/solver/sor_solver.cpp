@@ -10,7 +10,7 @@
 
 // Serial constructor
 SORSolver::SORSolver(double omega)
-    : omega_(omega)
+    : omega_(omega == 0.0 ? 1.0 : omega)
     , auto_omega_(1.0)
     , use_auto_omega_(omega == 0.0)
     , use_red_black_(false)
@@ -25,7 +25,7 @@ SORSolver::SORSolver(double omega)
 
 // Parallel constructor
 SORSolver::SORSolver(double omega, GhostCellExchange* ghost_exchange, MPI_Comm comm)
-    : omega_(omega)
+    : omega_(omega == 0.0 ? 1.0 : omega)
     , auto_omega_(1.0)
     , use_auto_omega_(omega == 0.0)
     , use_red_black_(true)  // Use red-black by default in parallel
@@ -186,7 +186,7 @@ void SORSolver::reset() {
 // Set omega
 void SORSolver::set_omega(double omega) {
     validate_omega(omega);
-    omega_ = omega;
+    omega_ = (omega == 0.0 ? 1.0 : omega);
     use_auto_omega_ = (omega == 0.0);
 }
 
@@ -212,9 +212,15 @@ bool SORSolver::is_red_black() const {
 
 // Compute optimal omega
 double SORSolver::compute_optimal_omega(size_t nx, size_t ny) {
-    // For the discrete Poisson equation, spectral radius of Jacobi iteration matrix:
-    // rho = cos(pi/(nx+1)) + cos(pi/(ny+1))
-    double rho = std::cos(M_PI / (nx + 1)) + std::cos(M_PI / (ny + 1));
+    size_t interior_nx = (nx > 2) ? nx - 2 : nx;
+    size_t interior_ny = (ny > 2) ? ny - 2 : ny;
+
+    // Spectral radius estimate for the Jacobi iteration matrix on a rectangle.
+    double rho = 0.5 * (
+        std::cos(M_PI / static_cast<double>(interior_nx + 1)) +
+        std::cos(M_PI / static_cast<double>(interior_ny + 1))
+    );
+    rho = std::clamp(rho, 0.0, 1.0 - 1e-12);
     
     // Optimal relaxation parameter:
     // omega_opt = 2 / (1 + sqrt(1 - rho^2))
@@ -243,6 +249,10 @@ double SORSolver::compute_residual(const utils::Array2D& rhs,
 
     // Compute residual at interior points (excluding boundaries)
     for (size_t i = 1; i < ny - 1; ++i) {
+        const double* rhs_row = rhs.row_data(i);
+        const double* sol_row = solution.row_data(i);
+        const double* sol_prev = solution.row_data(i - 1);
+        const double* sol_next = solution.row_data(i + 1);
         for (size_t j = 1; j < nx - 1; ++j) {
             // Residual = Ax - b (for Poisson: -4*x + neighbors - b)
             // For the discretized heat equation:
@@ -250,10 +260,10 @@ double SORSolver::compute_residual(const utils::Array2D& rhs,
             //             lambda * (solution[i+1][j] + solution[i-1][j] +
             //                      solution[i][j+1] + solution[i][j-1] - 4*solution[i][j])
             
-            double laplacian = solution(i+1, j) + solution(i-1, j) +
-                               solution(i, j+1) + solution(i, j-1) - 4.0 * solution(i, j);
+            double laplacian = sol_next[j] + sol_prev[j] +
+                               sol_row[j + 1] + sol_row[j - 1] - 4.0 * sol_row[j];
             
-            double residual = std::abs(rhs(i, j) - solution(i, j) + lambda * laplacian);
+            double residual = std::abs(rhs_row[j] - sol_row[j] + lambda * laplacian);
             max_residual = std::max(max_residual, residual);
         }
     }
@@ -267,21 +277,25 @@ void SORSolver::sor_iteration_dict(const utils::Array2D& rhs,
                                     double lambda) {
     size_t nx = solution.cols();
     size_t ny = solution.rows();
-    double coeff = 1.0 / (1.0 - 4.0 * lambda);
+    double coeff = 1.0 / (1.0 + 4.0 * lambda);
 
     // Update in lexicographic order
     for (size_t i = 1; i < ny - 1; ++i) {
+        const double* rhs_row = rhs.row_data(i);
+        double* sol_row = solution.row_data(i);
+        double* sol_prev = solution.row_data(i - 1);
+        double* sol_next = solution.row_data(i + 1);
         for (size_t j = 1; j < nx - 1; ++j) {
-            double x_old = solution(i, j);
+            double x_old = sol_row[j];
             
             // SOR update formula
-            double sum = solution(i+1, j) + solution(i-1, j) +
-                         solution(i, j+1) + solution(i, j-1);
+            double sum = sol_next[j] + sol_prev[j] +
+                         sol_row[j + 1] + sol_row[j - 1];
             
             double x_new = (1.0 - omega_) * x_old + 
-                           omega_ * coeff * (rhs(i, j) + lambda * sum);
+                           omega_ * coeff * (rhs_row[j] + lambda * sum);
             
-            solution(i, j) = x_new;
+            sol_row[j] = x_new;
         }
     }
 }
@@ -293,25 +307,29 @@ void SORSolver::sor_iteration_redblack(const utils::Array2D& rhs,
                                         int color) {
     size_t nx = solution.cols();
     size_t ny = solution.rows();
-    double coeff = 1.0 / (1.0 - 4.0 * lambda);
+    double coeff = 1.0 / (1.0 + 4.0 * lambda);
 
     // Update points of specified color
     for (size_t i = 1; i < ny - 1; ++i) {
+        const double* rhs_row = rhs.row_data(i);
+        double* sol_row = solution.row_data(i);
+        double* sol_prev = solution.row_data(i - 1);
+        double* sol_next = solution.row_data(i + 1);
         for (size_t j = 1; j < nx - 1; ++j) {
             // Check if this point matches the color
             if ((i + j) % 2 != color) {
                 continue;
             }
 
-            double x_old = solution(i, j);
+            double x_old = sol_row[j];
             
-            double sum = solution(i+1, j) + solution(i-1, j) +
-                         solution(i, j+1) + solution(i, j-1);
+            double sum = sol_next[j] + sol_prev[j] +
+                         sol_row[j + 1] + sol_row[j - 1];
             
             double x_new = (1.0 - omega_) * x_old + 
-                           omega_ * coeff * (rhs(i, j) + lambda * sum);
+                           omega_ * coeff * (rhs_row[j] + lambda * sum);
             
-            solution(i, j) = x_new;
+            sol_row[j] = x_new;
         }
     }
 }
@@ -327,26 +345,29 @@ void SORSolver::sor_iteration_parallel(const utils::Array2D& rhs,
     // Exchange ghost cells before iteration
     ghost_exchange_->exchange(solution);
 
-    size_t nx = solution.cols();
-    size_t ny = solution.rows();
-    double coeff = 1.0 / (1.0 - 4.0 * lambda);
+    size_t cols = solution.cols();
+    size_t rows = solution.rows();
+    double coeff = 1.0 / (1.0 + 4.0 * lambda);
 
     if (use_red_black_) {
         // Red-black ordering with ghost cells
-        // Note: Interior points are at indices [1..ny] x [1..nx]
-        // Ghost cells are at index 0 and ny+1, nx+1
+        // Interior points exclude ghost cells at the outer rows and columns.
         
         // Update red points
-        for (size_t i = 1; i <= ny; ++i) {
-            for (size_t j = 1; j <= nx; ++j) {
+        for (size_t i = 1; i < rows - 1; ++i) {
+            const double* rhs_row = rhs.row_data(i);
+            double* sol_row = solution.row_data(i);
+            double* sol_prev = solution.row_data(i - 1);
+            double* sol_next = solution.row_data(i + 1);
+            for (size_t j = 1; j < cols - 1; ++j) {
                 if ((i + j) % 2 != 0) continue;  // Only red points
                 
-                double x_old = solution(i, j);
-                double sum = solution(i+1, j) + solution(i-1, j) +
-                             solution(i, j+1) + solution(i, j-1);
+                double x_old = sol_row[j];
+                double sum = sol_next[j] + sol_prev[j] +
+                             sol_row[j + 1] + sol_row[j - 1];
                 double x_new = (1.0 - omega_) * x_old +
-                               omega_ * coeff * (rhs(i, j) + lambda * sum);
-                solution(i, j) = x_new;
+                               omega_ * coeff * (rhs_row[j] + lambda * sum);
+                sol_row[j] = x_new;
             }
         }
 
@@ -354,28 +375,36 @@ void SORSolver::sor_iteration_parallel(const utils::Array2D& rhs,
         ghost_exchange_->exchange(solution);
 
         // Update black points
-        for (size_t i = 1; i <= ny; ++i) {
-            for (size_t j = 1; j <= nx; ++j) {
+        for (size_t i = 1; i < rows - 1; ++i) {
+            const double* rhs_row = rhs.row_data(i);
+            double* sol_row = solution.row_data(i);
+            double* sol_prev = solution.row_data(i - 1);
+            double* sol_next = solution.row_data(i + 1);
+            for (size_t j = 1; j < cols - 1; ++j) {
                 if ((i + j) % 2 != 1) continue;  // Only black points
                 
-                double x_old = solution(i, j);
-                double sum = solution(i+1, j) + solution(i-1, j) +
-                             solution(i, j+1) + solution(i, j-1);
+                double x_old = sol_row[j];
+                double sum = sol_next[j] + sol_prev[j] +
+                             sol_row[j + 1] + sol_row[j - 1];
                 double x_new = (1.0 - omega_) * x_old +
-                               omega_ * coeff * (rhs(i, j) + lambda * sum);
-                solution(i, j) = x_new;
+                               omega_ * coeff * (rhs_row[j] + lambda * sum);
+                sol_row[j] = x_new;
             }
         }
     } else {
         // Dictionary ordering (not recommended for parallel)
-        for (size_t i = 1; i <= ny; ++i) {
-            for (size_t j = 1; j <= nx; ++j) {
-                double x_old = solution(i, j);
-                double sum = solution(i+1, j) + solution(i-1, j) +
-                             solution(i, j+1) + solution(i, j-1);
+        for (size_t i = 1; i < rows - 1; ++i) {
+            const double* rhs_row = rhs.row_data(i);
+            double* sol_row = solution.row_data(i);
+            double* sol_prev = solution.row_data(i - 1);
+            double* sol_next = solution.row_data(i + 1);
+            for (size_t j = 1; j < cols - 1; ++j) {
+                double x_old = sol_row[j];
+                double sum = sol_next[j] + sol_prev[j] +
+                             sol_row[j + 1] + sol_row[j - 1];
                 double x_new = (1.0 - omega_) * x_old +
-                               omega_ * coeff * (rhs(i, j) + lambda * sum);
-                solution(i, j) = x_new;
+                               omega_ * coeff * (rhs_row[j] + lambda * sum);
+                sol_row[j] = x_new;
             }
         }
     }
