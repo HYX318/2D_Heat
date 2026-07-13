@@ -5,6 +5,8 @@ add_library(heat_equation_options INTERFACE)
 target_compile_features(heat_equation_options INTERFACE cxx_std_17)
 set_target_properties(heat_equation_options PROPERTIES CXX_EXTENSIONS OFF)
 
+option(ENABLE_COVERAGE "Enable compiler coverage instrumentation" OFF)
+
 # Output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -19,6 +21,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         $<$<CONFIG:Release>:-O3>
         $<$<CONFIG:Release>:-march=native>
     )
+endif()
+
+if(ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(heat_equation_options INTERFACE --coverage -O0 -g)
+        target_link_options(heat_equation_options INTERFACE --coverage)
+    else()
+        message(FATAL_ERROR "ENABLE_COVERAGE requires GCC or Clang")
+    endif()
 endif()
 
 # Build options

@@ -18,25 +18,29 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        compiler: [gcc-11, clang-14]
+        compiler: [gcc-11, clang-14, apple-clang]
         mpi: [openmpi, mpich]
         build_type: [Release, Debug]
         exclude:
           # MPICH is not available on macOS via Homebrew
           - os: macos-latest
             mpi: mpich
+          - os: macos-latest
+            compiler: gcc-11
+          - os: macos-latest
+            compiler: clang-14
           # Apple Clang is macOS only
           - os: ubuntu-latest
             compiler: apple-clang
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: Set up macOS
         if: runner.os == 'macOS'
         run: |
-          brew install openmpi
+          brew install openmpi googletest
           export TMPDIR=/tmp
           echo "TMPDIR=/tmp" >> $GITHUB_ENV
 
@@ -51,29 +55,32 @@ jobs:
 
       - name: Set up environment variables
         run: |
-          if [ "${{ matrix.compiler }}" == "gcc-11" ]; then
-            echo "CC=gcc-11" >> $GITHUB_ENV
-            echo "CXX=g++-11" >> $GITHUB_ENV
-          elif [ "${{ matrix.compiler }}" == "clang-14" ]; then
-            echo "CC=clang-14" >> $GITHUB_ENV
-            echo "CXX=clang++-14" >> $GITHUB_ENV
-          elif [ "${{ matrix.compiler }}" == "apple-clang" ]; then
+          if [ "${{ runner.os }}" = "macOS" ]; then
             echo "CC=clang" >> $GITHUB_ENV
             echo "CXX=clang++" >> $GITHUB_ENV
+            echo "MPICC=mpicc" >> $GITHUB_ENV
+            echo "MPICXX=mpic++" >> $GITHUB_ENV
+            echo "MPIEXEC=mpirun" >> $GITHUB_ENV
+          elif [ "${{ matrix.compiler }}" = "gcc-11" ]; then
+            echo "CC=gcc-11" >> $GITHUB_ENV
+            echo "CXX=g++-11" >> $GITHUB_ENV
+          elif [ "${{ matrix.compiler }}" = "clang-14" ]; then
+            echo "CC=clang-14" >> $GITHUB_ENV
+            echo "CXX=clang++-14" >> $GITHUB_ENV
           fi
 
-          if [ "${{ matrix.mpi }}" == "openmpi" ]; then
+          if [ "${{ runner.os }}" = "Linux" ] && [ "${{ matrix.mpi }}" = "openmpi" ]; then
             echo "MPICC=mpicc.openmpi" >> $GITHUB_ENV
             echo "MPICXX=mpic++.openmpi" >> $GITHUB_ENV
             echo "MPIEXEC=mpirun.openmpi" >> $GITHUB_ENV
-          elif [ "${{ matrix.mpi }}" == "mpich" ]; then
+          elif [ "${{ runner.os }}" = "Linux" ] && [ "${{ matrix.mpi }}" = "mpich" ]; then
             echo "MPICC=mpicc.mpich" >> $GITHUB_ENV
             echo "MPICXX=mpic++.mpich" >> $GITHUB_ENV
             echo "MPIEXEC=mpirun.mpich" >> $GITHUB_ENV
           fi
 
       - name: Cache CMake build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             build/
@@ -84,13 +91,21 @@ jobs:
 
       - name: Configure CMake
         run: |
+          COVERAGE=OFF
+          if [ "${{ runner.os }}" = "Linux" ] && \
+             [ "${{ matrix.compiler }}" = "gcc-11" ] && \
+             [ "${{ matrix.build_type }}" = "Debug" ]; then
+            COVERAGE=ON
+          fi
+
           mkdir -p build
           cd build
           cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
                    -DCMAKE_C_COMPILER=${{ env.CC }} \
                    -DCMAKE_CXX_COMPILER=${{ env.CXX }} \
                    -DBUILD_TESTS=ON \
-                   -DENABLE_MPI=ON
+                   -DENABLE_MPI=ON \
+                   -DENABLE_COVERAGE=$COVERAGE
 
       - name: Build
         run: |
@@ -114,7 +129,7 @@ jobs:
         if: matrix.compiler == 'gcc-11' && matrix.build_type == 'Debug' && runner.os == 'Linux'
         run: |
           cd build
-          lcov --capture --directory . --output-file coverage.info
+          lcov --capture --directory . --output-file coverage.info --ignore-errors mismatch
           lcov --remove coverage.info '/usr/*' --output-file coverage.info
           lcov --list coverage.info
           bash <(curl -s https://codecov.io/bash) -f coverage.info || true
