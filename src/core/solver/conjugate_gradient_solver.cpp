@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <chrono>
 #include <algorithm>
+#include <vector>
 
 /**
  * @brief Constructor for serial execution
